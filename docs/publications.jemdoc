@@ -1,0 +1,17 @@
+# jemdoc: menu{MENU}{publications.html}, nofooter
+= Publications
+
+~~~
+{}{raw}
+<a href="https://scholar.google.com/citations?user=aO2wttoAAAAJ&hl=en" target="_blank">
+<img src="https://img.shields.io/badge/Google%20Scholar-4285F4?style=flat&logo=google-scholar&logoColor=white" alt="Google Scholar" style="height: 20px;">
+</a>
+~~~
+
+== Journal Papers
+
+. Cong-Cong Xing, *Zihao Ding*, Jun Huang, "A Stochastic Geometry-Based Analysis of SWIPT-Assisted Underlaid Device-to-Device Energy Harvesting", /ACM Applied Computing Review/, 2024. [https://dl.acm.org/doi/abs/10.1145/3787594.3787596 PDF]
+
+== Conference Papers
+
+. *Zihao Ding*, Jun Huang, Qiang Duan, Cheng Zhang, Yanxiao Zhao, Shuyang Gu, "A Dual-Level Game-Theoretic Approach for Collaborative Learning in UAV-Assisted Heterogeneous Vehicle Networks", in /*IPCCC*/, 2025. * Best Paper Award (1/34/147)* [https://ieeexplore.ieee.org/document/11304656 PDF]
