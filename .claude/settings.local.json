@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd E:/ZihaoDingHomepage/ZihaoDingHomepage/docs && python ../jemdoc -c mysite.conf index.jemdoc)"
+    ]
+  }
+}
