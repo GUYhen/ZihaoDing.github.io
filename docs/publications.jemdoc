@@ -10,11 +10,21 @@
 
 == Journal Papers
 
+. *Zihao Ding*, Jun Huang, "Toward Trustworthy Federated Unlearning for Mobile Autonomous Systems", /IEEE Network/, 2026. (Accepted)
+
+. *Zihao Ding*, Jun Huang, Yanxiao Zhao, Zhipeng Cai, "Combating Knowledge Diversity and Catastrophic Forgetting in UAV-Assisted Collaborative Vehicular Learning: A Game-Theoretic Approach", /ACM Transactions on Autonomous and Adaptive Systems/, 2026. \[[https://dl.acm.org/doi/10.1145/3820769 PDF]\]
+
 . Beining Wu, *Zihao Ding*, Jun Huang, "A Review of Continual Learning in Edge AI", /IEEE Transactions on Network Science and Engineering/, vol. 13, pp. 6571-6588, 2026.
 
 . Cong-Cong Xing, *Zihao Ding*, Jun Huang, "A Stochastic Geometry-Based Analysis of SWIPT-Assisted Underlaid Device-to-Device Energy Harvesting", /ACM Applied Computing Review/, 2026.
 
 == Conference Papers
+
+. *Zihao Ding*, Beining Wu, Jun Huang, "SCALE: Sensitivity-Aware Federated Unlearning with Information Freshness Optimization for Mobile Edge Computing", in /*ICDCS*/, 2026.
+
+. Ujjwal Pudasaini, *Zihao Ding*, Jun Huang, "Securing Smart Agriculture with Communication-Efficient Federated Unlearning", in /*HPSR*/, 2026.
+
+. *Zihao Ding*, Jun Huang, Junjian Qi, "Learning to Defend: A Multi-Agent Reinforcement Learning Framework for Stackelberg Security Game in Mobile Edge Computing", in /*ICNC*/, 2026. \[[https://ieeexplore.ieee.org/document/11416846 PDF]\] \[[https://github.com/GUYhen/Learning_to_Defend Code]\]
 
 . Jun Huang, Beining Wu, *Zihao Ding*, Leo Ostigaard, "Reinforcement Learning-Based Energy-Aware Coverage Path Planning for Precision Agriculture", in /*RACS*/, 2025. \[[https://dl.acm.org/doi/abs/10.1145/3769002.3769971 PDF]\]
 
