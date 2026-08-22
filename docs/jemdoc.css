@@ -376,8 +376,128 @@ table.imgtable, table.imgtable td {
     padding: 12px 16px;
     margin: 0.2em 0 0.8em 0;
     border-radius: 6px;
+    /* Fixed-height scrolling window */
+    max-height: 260px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #b9c4d6 transparent;
 }
 
 .newsbox ul {
     margin-bottom: 0.5em;
+}
+
+/* ---- Publication cards (figure left, details right) ---- */
+.pubcard {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin: 0 0 1.4em 0;
+}
+
+/* Fixed box keeps every figure the same footprint regardless of aspect ratio */
+.pubcard-fig {
+    flex: 0 0 340px;
+    width: 340px;
+    height: 192px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+    padding: 4px;
+    box-sizing: border-box;
+}
+
+/* Near-square figures: mild widening -- raise the ratio for more stretch, lower for less */
+.pubcard-fig.stretch img {
+    height: 100%;
+    width: auto;
+    aspect-ratio: 1.5;
+    object-fit: fill;
+}
+
+/* Thumbnail is a link to the full-resolution figure */
+a.pubcard-fig {
+    text-decoration: none;
+    cursor: zoom-in;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+a.pubcard-fig:hover {
+    border-color: #999;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.18);
+}
+
+.pubcard-fig img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+}
+
+.pubcard-body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.pubcard-title {
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.pubcard-authors {
+    margin-top: 0.25em;
+    font-size: 0.92em;
+    color: #333;
+}
+
+.pubcard-venue {
+    margin-top: 0.15em;
+    font-size: 0.92em;
+    font-style: italic;
+    color: #333;
+}
+
+.pubcard-desc {
+    margin-top: 0.4em;
+    font-size: 0.9em;
+    line-height: 1.45;
+    color: #444;
+}
+
+/* Stack on narrow screens */
+@media (max-width: 620px) {
+    .pubcard { flex-direction: column; }
+    .pubcard-fig { flex-basis: auto; width: 100%; }
+}
+
+/* Venue names in News: italic + semibold */
+.newsbox i {
+    font-style: italic;
+    font-weight: 600;
+    color: #000;
+}
+
+/* WebKit scrollbar */
+.newsbox::-webkit-scrollbar {
+    width: 8px;
+}
+
+.newsbox::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.newsbox::-webkit-scrollbar-thumb {
+    background: #c5cedd;
+    border-radius: 4px;
+}
+
+.newsbox::-webkit-scrollbar-thumb:hover {
+    background: #a3b0c6;
 }

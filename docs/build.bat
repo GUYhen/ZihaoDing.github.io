@@ -37,6 +37,27 @@ if errorlevel 1 (
 )
 echo.
 
+REM Compile blog index
+echo Compiling blog.jemdoc...
+python ..\jemdoc -c mysite.conf blog.jemdoc
+if errorlevel 1 (
+    echo [ERROR] Failed to compile blog.jemdoc
+) else (
+    echo [OK] Successfully compiled blog.jemdoc
+)
+echo.
+
+REM Compile blog posts (skip files starting with _)
+pushd blog
+for %%f in (*.jemdoc) do (
+    echo %%~nf| findstr /b "_" >nul || (
+        echo Compiling blog\%%f...
+        python ..\..\jemdoc -c ..\mysite.conf %%f
+    )
+)
+popd
+echo.
+
 echo ========================================
 echo Compilation completed!
 echo ========================================

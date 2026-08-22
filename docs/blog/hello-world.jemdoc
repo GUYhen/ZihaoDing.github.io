@@ -1,0 +1,17 @@
+# jemdoc: menu{MENU}{hello-world.html}, nofooter, nodefaultcss, addcss{../jemdoc.css}
+= Starting this blog
+
+/Posted August 22, 2026/
+
+I set up this space to keep notes on what I am reading and building --- mostly
+federated learning and unlearning, with the occasional detour into edge systems.
+
+== Why write things down
+
+Papers report the result that worked. The reasoning that got there, and the
+attempts that did not, usually go unrecorded. This is where I keep that part.
+
+== What to expect
+
+Short posts: a paper I found useful, a derivation I had to work through twice,
+or a bug that cost me a day.

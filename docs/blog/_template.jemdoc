@@ -1,0 +1,20 @@
+# jemdoc: menu{MENU}{<slug>.html}, nofooter, nodefaultcss, addcss{../jemdoc.css}
+= <Post title>
+
+/Posted <Month DD, YYYY>/
+
+Opening paragraph.
+
+== A section
+
+Body text. Italics with /slashes/, bold with *stars*, links like
+[https://example.com this].
+
+# figures live in blog/images/<slug>/
+~~~
+{}{img_left}{images/<slug>/figure1.png}{alt text}{600}{}
+~~~
+
+== Another section
+
+More text.

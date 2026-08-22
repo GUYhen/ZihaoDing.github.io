@@ -1,0 +1,12 @@
+# jemdoc: menu{MENU}{blog.html}, nofooter
+= Blog
+
+Notes on federated learning, unlearning, and things I run into along the way.
+
+# To add a post:
+#   1. create blog/<slug>.jemdoc  (copy blog/_template.jemdoc)
+#   2. put its figures in blog/images/<slug>/
+#   3. add one line to the list below
+#   4. run build.ps1 (or build.bat)
+
+- 2026-08-22 -- [blog/hello-world.html Starting this blog]
