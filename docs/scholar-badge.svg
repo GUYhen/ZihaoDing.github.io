@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="111" height="20" role="img" aria-label="Google Scholar">
+<title>Google Scholar</title>
+<linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
+<clipPath id="r"><rect width="111" height="20" rx="3"/></clipPath>
+<g clip-path="url(#r)"><rect width="111" height="20" fill="#4285f4"/><rect width="111" height="20" fill="url(#s)"/></g>
+<g transform="translate(5 3) scale(.583333)" fill="#fff"><path d="M5.242 13.769L0 9.5 12 0l12 9.5-5.242 4.269C17.548 11.249 14.978 9.5 12 9.5c-2.977 0-5.548 1.748-6.758 4.269zM12 10a7 7 0 1 0 0 14 7 7 0 0 0 0-14z"/></g>
+<text x="64.5" y="14" fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11" textLength="83">Google Scholar</text>
+</svg>

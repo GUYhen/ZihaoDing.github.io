@@ -4,12 +4,12 @@
 ~~~
 {}{raw}
 <a href="https://scholar.google.com/citations?user=aO2wttoAAAAJ&hl=en" target="_blank">
-<img src="https://img.shields.io/badge/Google%20Scholar-4285F4?style=flat&logo=google-scholar&logoColor=white" alt="Google Scholar" style="height: 20px;">
+<img src="scholar-badge.svg" alt="Google Scholar" style="height: 20px; vertical-align: middle;">
 </a>
 ~~~
 
-# Scholar stats below captured 2026-08-22 -- update here and in publications.jemdoc
-Citations: 208, h-index: 8, i10-index: 7
+# Scholar stats below captured 2026-08-26 -- update here and in index.jemdoc
+Citations: 212, h-index: 8, i10-index: 7
 
 == Journal Papers
 
