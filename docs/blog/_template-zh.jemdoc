@@ -1,0 +1,66 @@
+# jemdoc: menu{MENU}{POST-zh.html}, nofooter, nodefaultcss, addcss{../jemdoc.css}, addcss{post}, addjs{post}
+= 文章标题
+
+~~~
+{}{raw}
+<div class="postmeta"
+     data-topic="联邦遗忘"
+     data-date="2026 年 8 月 26 日"
+     data-lang="zh"
+     data-alt="POST.html"></div>
+~~~
+
+# =============================================================================
+# 中文版模板。结构和 _template.jemdoc 完全一样，只有三处不同：
+#   1. 文件名带 -zh，menu{} 里也要跟着改
+#   2. data-lang="zh"，data-alt 指回英文版
+#   3. 正文全中文 —— 不要中英夹杂，两个版本各自独立
+#
+# data-lang="zh" 会让 post.js 把界面文字切成中文：返回链接、"本文目录"、
+# 图注的"图 N："。
+#
+# 在 docs/blog/ 下编译：
+#     python ..\..\jemdoc -c ..\mysite.conf POST-zh.jemdoc
+#
+# 语法速查（和英文版一致）：
+#   ==  一级小节      ===  二级小节      /斜体/   *粗体*
+#   [链接地址 链接文字]        +等宽+
+#   行内公式 $x^2$，行间公式放进 raw 块
+#   定理框、图、脚注、参考文献的写法见 _template.jemdoc
+# =============================================================================
+
+开头的一两段，先讲清楚这篇写的是什么、为什么值得读。
+
+== 第一节
+
+正文段落。链接写成 [https://arxiv.org/abs/2604.04243 这样]，/斜体/，*粗体*。
+
+=== 小节
+
+小节会自动编号成 1.1、1.2，并缩进显示在顶部的目录框里。
+
+== 框
+
+~~~
+{}{raw}
+<div class="defn"><span class="head">定义 1（联邦遗忘）。</span>
+给定一个在若干客户端上训练出的模型，把其中某个客户端数据的影响移除，
+使模型表现得像从未见过这些数据一样。
+</div>
+
+<div class="note"><span class="head">注。</span>
+值得单独拎出来、但还不构成正式命题的旁注。
+</div>
+~~~
+
+== 公式
+
+行内公式 $\|w_t - w_t^\star\|_2 \le \epsilon$，行间公式放进 raw 块：
+
+~~~
+{}{raw}
+\[
+  \min_{\theta}\; \sum_{k=1}^{K} p_k\, F_k(\theta)
+  \quad\text{subject to}\quad \mathcal{I}(D_j;\theta) = 0 .
+\]
+~~~

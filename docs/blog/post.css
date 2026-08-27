@@ -1,0 +1,359 @@
+/* =====================================================================
+   Blog post stylesheet.
+
+   Modelled on the chapter pages of "Principles and Practice of Deep
+   Representation Learning" (Ma-Lab-Berkeley):
+     - sans-serif body on a capped measure, justified with hyphenation
+     - a bordered "in this post" mini table of contents
+     - numbered sections (1, 1.1, 1.2 ...)
+     - LaTeX-style theorem / definition / note blocks
+     - numbered figure captions and footnotes
+
+   Loaded on top of jemdoc.css, so nearly all of this is override.  Only
+   post pages pull it in, via  addcss{post}, addjs{post}  in their header.
+   ===================================================================== */
+
+:root {
+    --accent:     #3b82f6;
+    --accent-2:   #6366f1;
+    --text:       #0b1020;
+    --muted:      #475569;
+    --border:     #e8edf6;
+    --bg-soft:    #fafbff;
+    --thm-border: #e2e8f0;
+    --thm-accent: #94a3b8;
+}
+
+/* Typeface is deliberately NOT set here --- a post inherits the site's
+   Georgia stack from jemdoc.css, so it reads like the rest of the site.
+   Only the layout, spacing and structure come from the book. */
+body {
+    color: var(--text);
+}
+
+#layout-content {
+    padding: 0 clamp(18px, 3vw, 34px) 56px;
+}
+
+/* the reading column -- post.js moves the whole body into this */
+article.chapter {
+    max-width: 860px;
+    font-size: 1.0rem;
+    line-height: 1.72;
+}
+
+/* ---- links ------------------------------------------------------- */
+
+article.chapter a:link,
+article.chapter a:visited {
+    color: var(--accent);
+    border-bottom: none;
+    text-decoration: none;
+}
+
+article.chapter a:hover {
+    border-bottom: none;
+    text-decoration: underline;
+}
+
+/* ---- top bar: back link left, language switch right --------------- */
+
+.postbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    max-width: 880px;
+    padding: 14px 0 12px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: .92rem;
+}
+
+.postbar a.back:link, .postbar a.back:visited {
+    color: var(--muted);
+    border-bottom: none;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.postbar a.back:hover { color: var(--accent); text-decoration: none; }
+
+.postbar .langs {
+    display: inline-flex;
+    align-items: stretch;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: .84rem;
+    line-height: 1;
+}
+
+.postbar .langs > * {
+    padding: 7px 13px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.postbar .langs .cur {
+    background: var(--bg-soft);
+    color: var(--text);
+    font-weight: 700;
+}
+
+.postbar .langs a:link,
+.postbar .langs a:visited {
+    color: var(--muted);
+    border-bottom: none;
+    border-left: 1px solid var(--border);
+    text-decoration: none;
+}
+
+.postbar .langs a:hover {
+    background: var(--bg-soft);
+    color: var(--accent);
+    text-decoration: none;
+}
+
+/* ---- title block ------------------------------------------------- */
+
+article.chapter div#toptitle {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin: 8px 0 1.3em;
+}
+
+article.chapter .kicker {
+    font-size: .73rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: .5em;
+}
+
+article.chapter h1 {
+    color: var(--text);
+    border-bottom: none;
+    padding: 0;
+    margin: 0;
+    font-size: clamp(25px, 3.2vw, 33px);
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+/* CJK does not want the wide tracking or the uppercasing that suits a
+   Latin kicker; post.js stamps lang on <html> so this can key off it */
+[lang="zh-CN"] article.chapter .kicker,
+[lang="zh-CN"] .mini-toc-title {
+    letter-spacing: .02em;
+    text-transform: none;
+}
+
+[lang="zh-CN"] article.chapter .kicker { font-size: .8rem; }
+[lang="zh-CN"] .mini-toc-title { font-size: .8rem; }
+[lang="zh-CN"] article.chapter p { hyphens: none; -webkit-hyphens: none; }
+
+/* ---- mini table of contents -------------------------------------- */
+
+.mini-toc {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 15px 20px;
+    margin: 0 0 2.2rem;
+    max-width: 880px;
+}
+
+.mini-toc-title {
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    color: var(--muted);
+    margin-bottom: 9px;
+}
+
+.mini-toc ul { margin: 0; padding: 0; list-style: none; }
+.mini-toc li { margin: 3px 0; line-height: 1.5; }
+.mini-toc li.sub { padding-left: 1.5em; font-size: .95em; }
+
+.mini-toc a:link, .mini-toc a:visited {
+    color: var(--accent);
+    border-bottom: none;
+    text-decoration: none;
+}
+.mini-toc a:hover { text-decoration: underline; }
+
+/* ---- headings ---------------------------------------------------- */
+
+article.chapter h2,
+article.chapter h3 {
+    color: var(--text);
+    border-bottom: none;
+    padding: 0;
+    font-weight: 700;
+    line-height: 1.32;
+}
+
+article.chapter h2 { font-size: 1.36rem; margin: 2.1em 0 .5em; }
+article.chapter h3 { font-size: 1.12rem; margin: 1.7em 0 .4em; }
+
+article.chapter .secnum { margin-right: .06em; }
+
+/* ---- body copy --------------------------------------------------- */
+
+article.chapter p {
+    margin: .65em 0;
+    line-height: 1.72;
+    text-align: justify;
+    -webkit-hyphens: auto;
+    hyphens: auto;
+}
+
+article.chapter ul,
+article.chapter ol { margin: .8em 0 1.1em; padding-left: 1.6em; }
+article.chapter li { margin: .3em 0; }
+
+/* a bold run-in lead, the book's paragraphHead */
+article.chapter .lead { font-weight: 700; }
+
+article.chapter tt,
+article.chapter code {
+    background: #f4f6fb;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0 .32em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .92em;
+}
+
+/* ---- epigraph ---------------------------------------------------- */
+
+.epigraph {
+    margin: 0 0 2em 1.4em;
+    color: var(--muted);
+    font-style: italic;
+    line-height: 1.65;
+    max-width: 640px;
+}
+
+.epigraph .by {
+    display: block;
+    margin-top: .5em;
+    font-style: normal;
+}
+
+/* ---- theorem-like blocks ----------------------------------------- */
+
+.thm, .defn, .note {
+    border: 1px solid var(--thm-border);
+    border-left: 3px solid var(--thm-accent);
+    border-radius: 8px;
+    padding: 13px 18px;
+    margin: 1.7em 0;
+    line-height: 1.65;
+}
+
+.thm  { border-left-color: var(--accent);   background: #fcfdff; }
+.defn { border-left-color: var(--accent-2); background: #fcfcff; }
+.note { border-left-color: var(--thm-accent); background: var(--bg-soft); }
+
+.thm .head, .defn .head, .note .head {
+    font-weight: 700;
+    margin-right: .45em;
+}
+
+.thm p, .defn p, .note p { text-align: left; margin: .5em 0; }
+.thm p:first-child, .defn p:first-child, .note p:first-child { margin-top: 0; }
+.thm p:last-child, .defn p:last-child, .note p:last-child { margin-bottom: 0; }
+
+/* ---- figures ----------------------------------------------------- */
+
+article.chapter figure {
+    margin: 1.9em 0;
+    text-align: center;
+}
+
+article.chapter figure img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+}
+
+article.chapter figcaption {
+    margin: .75em auto 0;
+    max-width: 620px;
+    font-size: .89rem;
+    line-height: 1.55;
+    color: var(--muted);
+    text-align: center;
+}
+
+article.chapter figcaption .id {
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+/* ---- equations --------------------------------------------------- */
+
+article.chapter .MathJax_Display,
+article.chapter .MJXc-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+/* ---- footnotes --------------------------------------------------- */
+
+sup.fn { font-size: .72em; }
+sup.fn a:link, sup.fn a:visited { color: var(--accent); border-bottom: none; }
+
+.footnotes {
+    margin-top: 3em;
+    padding-top: 1.1em;
+    border-top: 1px solid var(--border);
+    font-size: .88rem;
+    line-height: 1.6;
+    color: var(--muted);
+}
+
+.footnotes ol { margin: 0; padding-left: 1.4em; }
+.footnotes li { margin: .4em 0; }
+
+/* ---- references -------------------------------------------------- */
+
+.refs {
+    margin-top: 2.4em;
+    font-size: .92rem;
+    line-height: 1.6;
+    color: var(--muted);
+}
+
+.refs ol { margin: .5em 0 0; padding-left: 1.5em; }
+.refs li { margin: .45em 0; }
+
+/* ---- foot of the post -------------------------------------------- */
+
+.postnav {
+    max-width: 880px;
+    margin-top: 3.2em;
+    padding-top: 1.2em;
+    border-top: 1px solid var(--border);
+    font-size: .92rem;
+}
+
+.postnav a:link, .postnav a:visited {
+    color: var(--muted);
+    border-bottom: none;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.postnav a:hover { color: var(--accent); }
+
+@media (max-width: 640px) {
+    article.chapter p { text-align: left; }
+    .epigraph { margin-left: 0; }
+}

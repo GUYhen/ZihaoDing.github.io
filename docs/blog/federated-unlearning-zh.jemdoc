@@ -1,0 +1,30 @@
+# jemdoc: menu{MENU}{federated-unlearning-zh.html}, nofooter, nodefaultcss, addcss{../jemdoc.css}, addcss{post}, addjs{post}
+= 联邦遗忘
+
+~~~
+{}{raw}
+<div class="postmeta"
+     data-topic="联邦遗忘"
+     data-date="2026 年 8 月 26 日"
+     data-lang="zh"
+     data-alt="federated-unlearning.html"></div>
+~~~
+
+# ---------------------------------------------------------------------------
+# 中文版，你自己写。英文版是独立的另一个文件，两边各写各的，不要中英夹杂。
+#
+#   ==  一级小节（自动编号 1、2）      ===  二级小节（1.1、1.2）
+#   /斜体/   *粗体*   +等宽+   [网址 链接文字]
+#   行内公式 $x^2$；行间公式放进  ~~~ {}{raw} ... ~~~  块里
+#
+# 定理框、图、脚注、参考文献的写法，照抄 _template.jemdoc。
+#
+# 在 docs/blog/ 下编译：
+#     python ..\..\jemdoc -c ..\mysite.conf federated-unlearning-zh.jemdoc
+# ---------------------------------------------------------------------------
+
+开头写在这里。
+
+== 第一节
+
+第一节写在这里。

@@ -33,13 +33,511 @@ MathJax.Hub.Config({
 <div id="toptitle">
 <h1>Blog</h1>
 </div>
-<p>Notes on federated learning, unlearning, and things I run into along the way.
-</p>
+<div class="graphcard" id="gcard">
+  <div class="graphview">
+    <svg id="ggraph" viewBox="70 0 460 360" preserveAspectRatio="xMidYMid meet"
+         role="img" aria-label="Blog topic graph"></svg>
+    <div class="hint" id="ghint">hover to explore &middot; click to pin</div>
+  </div>
+  <div class="graphpanel" id="gpanel"></div>
+</div>
+
+<noscript>
 <ul>
-<li><p>2026-08-22 &ndash; <a href="blog/hello-world.html" target=&ldquo;blank&rdquo;>Starting this blog</a>
-</p>
-</li>
+  <li>2026-08-26 &ndash; <a href="blog/federated-unlearning.html">Getting into Federated Unlearning</a></li>
+  <li>2026-08-22 &ndash; <a href="blog/hello-world.html">Starting this blog</a></li>
 </ul>
+</noscript>
+
+<script>
+(function () {
+"use strict";
+
+/* =====================================================================
+   EDIT HERE.  One object per topic; nest new topics under `children`.
+   `abbr` is what the circle shows, `label` is the full name in the panel.
+
+   `icon` takes any of three forms:
+       "eraser"                 a built-in monoline glyph --- eraser,
+                                network, chat, shield, lock, flask,
+                                clock, book, key, chip
+       "blog/icons/thing.png"   your own file (png or svg).  The node turns
+                                into a white plate with a coloured ring so
+                                a full-colour icon stays readable.  Download
+                                512px PNGs --- they are drawn at ~26px, and
+                                the spare pixels keep them sharp on retina
+                                screens and while a node is enlarged.
+       an emoji character       drawn as-is
+
+   `posts` = blog articles (papers stay on the Publication page).  Each one
+   is { date, title, excerpt, href, cover }, where `cover` is a real picture
+   for the panel --- a figure from the post, a photo, or one of the abstract
+   covers in blog/images/covers/.  Without one the row falls back to a plain
+   tinted tile with the topic tag on it.
+   `pending: true` = outlined "coming soon" node.
+   ===================================================================== */
+
+var ROOT = {
+  abbr: "MU", icon: "blog/icons/3d/brain.png", label: "Machine Unlearning", color: "#34405e",
+  posts: [
+    { date: "2026-08-22", title: "Starting this blog",
+      excerpt: "Papers report the result that worked. This is where the " +
+               "reasoning and the dead ends go.",
+      cover: "blog/images/covers/notes.svg",
+      href: "blog/hello-world.html" }
+  ],
+  children: [
+    { abbr: "FU", icon: "blog/icons/3d/busts.png", label: "Federated Unlearning", color: "#527bbd",
+      posts: [
+        { date: "2026-08-26", title: "Getting into Federated Unlearning",
+          excerpt: "Why a trained federated model cannot simply drop a " +
+                   "client, and what people do about it.",
+          cover: "blog/images/covers/federated.svg",
+          href: "blog/federated-unlearning.html" }
+      ],
+      children: [] },
+    { abbr: "LLMU", icon: "blog/icons/3d/robot.png", label: "LLM Unlearning", color: "#e8865e",
+      pending: true, posts: [], children: [] },
+    { abbr: "UV", icon: "blog/icons/3d/magnifier.png", label: "Unlearning Verification", color: "#58b99d",
+      pending: true, posts: [], children: [] }
+  ]
+};
+
+/* ===================== scaffolding ================================= */
+
+var W = 600, H = 360, CX = W / 2, CY = H / 2;
+var RING1 = 132, RING2 = 102;
+var NS = "http://www.w3.org/2000/svg";
+var XLINK = "http://www.w3.org/1999/xlink";
+var svg = document.getElementById("ggraph");
+var panel = document.getElementById("gpanel");
+var card = document.getElementById("gcard");
+var hint = document.getElementById("ghint");
+var reduced = window.matchMedia &&
+              window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function el(name, attrs, parent) {
+  var n = document.createElementNS(NS, name);
+  for (var k in attrs) { if (attrs.hasOwnProperty(k)) { n.setAttribute(k, attrs[k]); } }
+  (parent || svg).appendChild(n);
+  return n;
+}
+
+/* ---- colour helpers -----------------------------------------------
+   A cartoon icon carries its own colours, so its node cannot be a solid
+   disc.  Instead the disc becomes a pale wash of the topic colour and the
+   ring plus label keep the identity. */
+
+function mix(hex, keep, toward) {
+  var n = parseInt(hex.slice(1), 16);
+  var c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(function (v) {
+    return Math.round(toward + (v - toward) * keep);
+  });
+  return "rgb(" + c.join(",") + ")";
+}
+function tint(hex) { return mix(hex, 0.09, 255); }   /* pale wash   */
+function deep(hex) { return mix(hex, 0.72, 0); }     /* darker text */
+
+/* ===================== icon set ====================================
+   Every glyph is drawn inside a 24x24 box and inherits fill:none /
+   stroke:<ink> / stroke-width:2 from its wrapper, so the whole set has
+   one weight and one look --- that is the part emoji could never do.  */
+
+var ICONS = {
+  /* machine unlearning: an eraser wiping a line */
+  eraser: function (g) {
+    var r = el("g", { transform: "rotate(-45 12 12)" }, g);
+    el("rect", { x: 4.5, y: 8.5, width: 15, height: 8, rx: 2 }, r);
+    el("line", { x1: 12.2, y1: 8.5, x2: 12.2, y2: 16.5 }, r);
+    el("line", { x1: 3.4, y1: 20.6, x2: 20.6, y2: 20.6 }, g);
+  },
+  /* federated: a hub with three clients */
+  network: function (g, ink) {
+    el("line", { x1: 12, y1: 10.1, x2: 12, y2: 6.5 }, g);
+    el("line", { x1: 10.1, y1: 14.1, x2: 7.1, y2: 16.2 }, g);
+    el("line", { x1: 13.9, y1: 14.1, x2: 16.9, y2: 16.2 }, g);
+    el("circle", { cx: 12, cy: 12.5, r: 2.6, fill: ink }, g);
+    el("circle", { cx: 12, cy: 4.4, r: 2.2 }, g);
+    el("circle", { cx: 5.2, cy: 17.8, r: 2.2 }, g);
+    el("circle", { cx: 18.8, cy: 17.8, r: 2.2 }, g);
+  },
+  /* language model: a speech bubble */
+  chat: function (g, ink) {
+    el("path", { d: "M20.5 14.5a2 2 0 0 1-2 2H8.6L4 20.3V5.5a2 2 0 0 1 2-2h12.5a2 2 0 0 1 2 2z" }, g);
+    [8.6, 12.2, 15.8].forEach(function (x) {
+      el("circle", { cx: x, cy: 10, r: 1.15, fill: ink, stroke: "none" }, g);
+    });
+  },
+  /* verification: a shield with a check */
+  shield: function (g) {
+    el("path", { d: "M12 2.8 20 5.8v6.1c0 4.4-3.4 7.4-8 9.3-4.6-1.9-8-4.9-8-9.3V5.8z" }, g);
+    el("path", { d: "M8.4 12.1 11 14.7l4.8-4.8" }, g);
+  },
+  /* privacy */
+  lock: function (g) {
+    el("rect", { x: 4, y: 10.5, width: 16, height: 10.5, rx: 2.4 }, g);
+    el("path", { d: "M7.8 10.5V8a4.2 4.2 0 0 1 8.4 0v2.5" }, g);
+  },
+  /* experiments */
+  flask: function (g) {
+    el("path", { d: "M9.5 3v6.4L4.4 18a2 2 0 0 0 1.7 3h11.8a2 2 0 0 0 1.7-3l-5.1-8.6V3" }, g);
+    el("line", { x1: 8.2, y1: 3, x2: 15.8, y2: 3 }, g);
+    el("line", { x1: 7.2, y1: 14.6, x2: 16.8, y2: 14.6 }, g);
+  },
+  /* efficiency / freshness */
+  clock: function (g) {
+    el("circle", { cx: 12, cy: 12, r: 9 }, g);
+    el("path", { d: "M12 6.6V12l3.9 2.4" }, g);
+  },
+  /* surveys, notes */
+  book: function (g) {
+    el("path", { d: "M4 4.6h6.2A2.8 2.8 0 0 1 12 7.4v13a2.4 2.4 0 0 0-2.2-1.5H4z" }, g);
+    el("path", { d: "M20 4.6h-6.2A2.8 2.8 0 0 0 12 7.4v13a2.4 2.4 0 0 1 2.2-1.5H20z" }, g);
+  },
+  /* security */
+  key: function (g) {
+    el("circle", { cx: 7.6, cy: 16.4, r: 4 }, g);
+    el("path", { d: "M10.5 13.5 20 4m-3 3 2.6 2.6M14 7l2.6 2.6" }, g);
+  },
+  /* systems / edge */
+  chip: function (g) {
+    el("rect", { x: 7, y: 7, width: 10, height: 10, rx: 2 }, g);
+    el("path", { d: "M10 3.2v3.8M14 3.2v3.8M10 17v3.8M14 17v3.8M3.2 10H7M3.2 14H7M17 10h3.8M17 14h3.8" }, g);
+  }
+};
+
+/* ===================== tree bookkeeping ============================ */
+
+var nodes = [], edges = [];
+(function collect(node, parent) {
+  node._parent = parent;
+  node._depth = parent ? parent._depth + 1 : 0;
+  nodes.push(node);
+  (node.children || []).forEach(function (c) {
+    edges.push({ a: node, b: c });
+    collect(c, node);
+  });
+})(ROOT, null);
+
+function neighbors(n) {
+  var list = n._parent ? [n._parent] : [];
+  return list.concat(n.children || []);
+}
+
+function baseRadius(n) {
+  if (n === ROOT) { return 32; }
+  return n.pending ? 25 : 28;
+}
+
+/* ===================== focus layout ================================ */
+
+/* Whoever is hovered (or pinned) sits enlarged at the centre; direct
+   neighbors ring around it, everything further keeps fanning outward.
+   Positions are targets --- the animation loop glides toward them. */
+function layoutFocus(F) {
+  nodes.forEach(function (n) { n._placed = false; });
+  F._tx = CX; F._ty = CY; F._ts = 1.32; F._placed = true;
+
+  var queue = [{ n: F, ang: 0 }];
+  while (queue.length) {
+    var cur = queue.shift();
+    var free = neighbors(cur.n).filter(function (m) { return !m._placed; });
+    if (!free.length) { continue; }
+    var k = free.length;
+    free.forEach(function (m, i) {
+      var a;
+      if (typeof m._x === "number") {
+        /* keep the bearing the node already has from its anchor, so a
+           focus change slides everything along arcs -- no flips */
+        a = Math.atan2(m._y - cur.n._y, m._x - cur.n._x);
+      } else if (cur.n === F) {
+        a = -Math.PI / 2 + i * 2 * Math.PI / k;          /* first layout */
+      } else {
+        var spr = Math.min(2.4, k * 1.1);
+        a = k === 1 ? cur.ang
+          : cur.ang - spr / 2 + spr * i / (k - 1);
+      }
+      var d = cur.n === F ? RING1 : RING2;
+      m._tx = cur.n._tx + d * Math.cos(a);
+      m._ty = cur.n._ty + d * Math.sin(a);
+      m._ts = 1;
+      m._placed = true;
+      queue.push({ n: m, ang: a });
+    });
+  }
+}
+
+/* ===================== panel ======================================= */
+
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function show(node) {
+  var n = (node.posts || []).length;
+  var h = "<div class='panel-inner'>" +
+          "<h3 style='color:" + node.color + "'>" + esc(node.label) + "</h3>" +
+          "<div class='sub'>" + esc(node.abbr) + " &middot; " +
+          (node.pending ? "coming soon" : n + (n === 1 ? " post" : " posts")) +
+          "</div>";
+  if (node.pending) {
+    h += "<p class='empty'>Nothing written in this direction yet --- the node " +
+         "fills in when the first post lands.</p>";
+  } else if (n) {
+    h += "<ul class='posts'>" + node.posts.map(function (p) {
+           var art = p.cover
+             ? "<img src='" + p.cover + "' alt=''>"
+             : esc(node.abbr);          /* no picture yet: show the topic tag */
+           return "<li><a class='post' href='" + p.href + "'>" +
+                  "<span class='thumb' style='background:" + tint(node.color) +
+                  ";color:" + deep(node.color) + "'>" + art + "</span>" +
+                  "<span class='meta'>" +
+                    "<span class='t'>" + esc(p.title) + "</span>" +
+                    (p.excerpt ? "<span class='x'>" + esc(p.excerpt) + "</span>" : "") +
+                    "<span class='d'>" + esc(p.date) + "</span>" +
+                  "</span></a></li>";
+         }).join("") + "</ul>";
+  } else {
+    h += "<p class='empty'>No posts under this node yet.</p>";
+  }
+  h += "</div>";
+  panel.innerHTML = h;               /* fresh .panel-inner replays its fade */
+}
+
+/* ===================== drawing ===================================== */
+
+var pinned = ROOT;
+
+var defs = el("defs", {});
+nodes.forEach(function (node, i) {
+  node._id = i;
+  var f = el("filter", { id: "glow" + i, x: "-60%", y: "-60%",
+                         width: "220%", height: "220%" }, defs);
+  el("feDropShadow", { dx: 0, dy: 1.5, stdDeviation: 4,
+                       "flood-color": node.color,
+                       "flood-opacity": node.pending ? .2 : .38 }, f);
+});
+
+edges.forEach(function (e) {
+  e.line = el("line", {
+    stroke: "#c9d2e0", "stroke-opacity": .85,
+    "stroke-width": 1.6, class: "gedge"
+  });
+});
+
+function setFocus(node, on) {
+  svg.classList.toggle("focus", on);
+  nodes.forEach(function (n) { n._g.classList.remove("lit"); });
+  edges.forEach(function (e) {
+    e.line.classList.remove("lit");
+    e.line.setAttribute("stroke", "#c9d2e0");
+    e.line.setAttribute("stroke-opacity", .85);
+    e.line.setAttribute("stroke-width", 1.6);
+  });
+  if (!on) { return; }
+  node._g.classList.add("lit");
+  neighbors(node).forEach(function (m) { m._g.classList.add("lit"); });
+  edges.forEach(function (e) {
+    if (e.a === node || e.b === node) {
+      e.line.classList.add("lit");
+      e.line.setAttribute("stroke", node.color);
+      e.line.setAttribute("stroke-opacity", .95);
+      e.line.setAttribute("stroke-width", 2.4);
+    }
+  });
+}
+
+nodes.forEach(function (node) {
+  var g = el("g", { class: "gnode" });   /* JS drives its transform */
+  g.style.animationDelay = (node._depth * 0.18 + node._id * 0.05) + "s";
+  var r = baseRadius(node);
+  node._r = r;
+
+  var img = /\.(png|svg|webp|jpe?g|gif)$/i.test(node.icon || "");
+  var pen = img ? deep(node.color)
+          : node.pending ? node.color : "#ffffff";
+
+  el("circle", { cx: 0, cy: 0, r: r,
+                 fill: img ? tint(node.color)
+                     : node.pending ? "#ffffff" : node.color,
+                 stroke: node.color,
+                 "stroke-opacity": node.pending ? .8 : (img ? .6 : 0),
+                 "stroke-width": img ? 2 : 1.8,
+                 "stroke-dasharray": node.pending ? "4 5" : "none",
+                 filter: "url(#glow" + node._id + ")" }, g);
+
+  /* icon on top, abbreviation underneath, both inside the circle.
+     Cartoon art ships with its own padding, so it sits larger and higher
+     than a monoline glyph. */
+  var s = r * (img ? 1.06 : 0.82), iy = -r * (img ? 0.30 : 0.24);
+  var draw = ICONS[node.icon];
+  if (draw) {
+    var box = el("g", {
+      transform: "translate(" + (-s / 2) + " " + (iy - s / 2) + ") " +
+                 "scale(" + (s / 24) + ")",
+      fill: "none", stroke: pen, "stroke-width": 2,
+      "stroke-linecap": "round", "stroke-linejoin": "round"
+    }, g);
+    draw(box, pen);
+  } else if (img) {
+    var pic = el("image", { x: -s / 2, y: iy - s / 2, width: s, height: s,
+                            preserveAspectRatio: "xMidYMid meet",
+                            href: node.icon }, g);
+    pic.setAttributeNS(XLINK, "href", node.icon);   /* older engines */
+  } else if (node.icon) {
+    var em = el("text", { x: 0, y: iy + s * 0.36, "text-anchor": "middle",
+                          "font-size": s }, g);
+    em.textContent = node.icon;
+  }
+
+  var abbr = el("text", { x: 0, y: r * (img ? 0.56 : 0.46) + 3,
+                          "text-anchor": "middle", fill: pen,
+                          "font-size": node.abbr.length > 3 ? 9.5 : 11.5,
+                          "font-weight": 700,
+                          "letter-spacing": ".05em" }, g);
+  abbr.textContent = node.abbr;
+
+  var count = (node.posts || []).length;
+  if (count > 0) {
+    var bx = r * 0.74, by = -r * 0.74;
+    el("circle", { cx: bx, cy: by, r: 9, fill: "#ffffff",
+                   stroke: node.color, "stroke-width": 1.5 }, g);
+    var ct = el("text", { x: bx, y: by + 3.8, "text-anchor": "middle",
+                          fill: node.color, "font-size": 10.5,
+                          "font-weight": 700 }, g);
+    ct.textContent = count;
+  }
+
+  /* generous invisible hit area, on top so it catches every event */
+  el("circle", { cx: 0, cy: 0, r: r + 16, fill: "transparent" }, g);
+
+  node._g = g;
+
+  g.addEventListener("mouseenter", function () { focusOn(node); });
+  g.addEventListener("click", function () {
+    pinned = (pinned === node) ? ROOT : node;
+    setHint();
+    focusOn(node);
+  });
+});
+
+/* ===================== focus / hover state machine =================
+   The panel is part of the hover surface: walking the mouse off a node
+   and over to the post list must NOT reset anything, or the links are
+   unclickable.  So the reset lives on the whole card and is delayed,
+   and any re-entry cancels it. */
+
+var current = ROOT;          /* what is focused right now */
+var pending = null, switchTimer = null, leaveTimer = null, lastSwitch = 0;
+
+function setHint() {
+  hint.textContent = pinned === ROOT
+    ? "hover to explore · click to pin"
+    : "pinned: " + pinned.abbr + " · click it again to release";
+}
+
+function cancelLeave() {
+  if (leaveTimer) { window.clearTimeout(leaveTimer); leaveTimer = null; }
+}
+
+function applyFocus(node) {
+  lastSwitch = Date.now();
+  current = node;
+  layoutFocus(node);
+  setFocus(node, true);
+  show(node);
+}
+
+/* throttled, but never dropped: a hover that arrives too soon is queued
+   rather than ignored, so quick sweeps still land on the last node */
+function focusOn(node) {
+  cancelLeave();
+  if (node === current) { return; }
+  pending = node;
+  if (switchTimer) { return; }
+  switchTimer = window.setTimeout(function () {
+    switchTimer = null;
+    var n = pending; pending = null;
+    if (n && n !== current) { applyFocus(n); }
+  }, Math.max(0, 170 - (Date.now() - lastSwitch)));
+}
+
+card.addEventListener("mouseenter", cancelLeave);
+card.addEventListener("mouseleave", function () {
+  cancelLeave();
+  leaveTimer = window.setTimeout(function () {
+    leaveTimer = null;
+    if (pinned !== current) { applyFocus(pinned); }
+  }, 600);
+});
+
+/* ===================== animation loop ============================== */
+
+layoutFocus(ROOT);
+setFocus(ROOT, true);
+show(ROOT);
+setHint();
+
+nodes.forEach(function (n, i) {
+  n._x = n._tx; n._y = n._ty; n._s = n._ts;
+  n._ax = 2 + (i % 3);              /* drift amplitude px */
+  n._ay = 1.6 + ((i + 1) % 3);
+  n._wx = 0.00026 + i * 0.00005;
+  n._wy = 0.00032 + i * 0.00004;
+  n._ph = i * 2.1;
+  n._dx = 0; n._dy = 0;
+});
+
+function apply() {
+  nodes.forEach(function (n) {
+    n._g.setAttribute("transform",
+      "translate(" + (n._x + n._dx) + " " + (n._y + n._dy) + ") scale(" + n._s + ")");
+  });
+  edges.forEach(function (e) {
+    e.line.setAttribute("x1", e.a._x + e.a._dx);
+    e.line.setAttribute("y1", e.a._y + e.a._dy);
+    e.line.setAttribute("x2", e.b._x + e.b._dx);
+    e.line.setAttribute("y2", e.b._y + e.b._dy);
+  });
+}
+
+if (reduced) {
+  /* no motion: snap to targets whenever they change */
+  apply();
+  window.setInterval(function () {
+    var moved = false;
+    nodes.forEach(function (n) {
+      if (n._x !== n._tx || n._y !== n._ty || n._s !== n._ts) {
+        n._x = n._tx; n._y = n._ty; n._s = n._ts; moved = true;
+      }
+    });
+    if (moved) { apply(); }
+  }, 120);
+} else {
+  (function tick(t) {
+    nodes.forEach(function (n) {
+      n._x += (n._tx - n._x) * 0.055;        /* glide toward the target */
+      n._y += (n._ty - n._y) * 0.055;
+      n._s += (n._ts - n._s) * 0.07;
+      n._dx = n._ax * Math.sin(t * n._wx + n._ph);
+      n._dy = n._ay * Math.sin(t * n._wy + n._ph * 1.7);
+    });
+    apply();
+    window.requestAnimationFrame(tick);
+  })(0);
+}
+
+/* entrance fade should not replay if fonts trigger a late reflow */
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(function () {
+    window.setTimeout(function () { svg.classList.add("settled"); }, 1400);
+  });
+}
+
+})();
+</script>
+<p>Hover a topic to see its posts. Click to pin it, click again to release.
+</p>
 </td>
 </tr>
 </table>

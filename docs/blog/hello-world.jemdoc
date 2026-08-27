@@ -1,7 +1,14 @@
-# jemdoc: menu{MENU}{hello-world.html}, nofooter, nodefaultcss, addcss{../jemdoc.css}
+# jemdoc: menu{MENU}{hello-world.html}, nofooter, nodefaultcss, addcss{../jemdoc.css}, addcss{post}, addjs{post}
 = Starting this blog
 
-/Posted August 22, 2026/
+~~~
+{}{raw}
+<div class="postmeta"
+     data-topic="Machine Unlearning"
+     data-date="August 22, 2026"
+     data-lang="en"
+     data-alt="hello-world-zh.html"></div>
+~~~
 
 I set up this space to keep notes on what I am reading and building --- mostly
 federated learning and unlearning, with the occasional detour into edge systems.

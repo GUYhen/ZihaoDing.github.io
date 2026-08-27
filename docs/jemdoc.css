@@ -8,7 +8,8 @@ table#tlayout {
 
 body {
 	background: white;
-	font-family: Georgia, serif;
+	font-family: Georgia, "Source Han Serif SC", "Noto Serif CJK SC",
+	             "Songti SC", "Microsoft YaHei", "PingFang SC", serif;
 	padding-bottom: 8px;
 	margin: 0;
 }
@@ -500,4 +501,247 @@ a.pubcard-fig:hover {
 
 .newsbox::-webkit-scrollbar-thumb:hover {
     background: #a3b0c6;
+}
+
+
+/* ---- Blog index: light knowledge graph, hover re-centers ---- */
+.graphcard {
+    display: flex;
+    gap: 0;
+    max-width: 840px;   /* hard cap -- the flex row can never grow past this */
+    margin: 0.4em 0 1.2em 0;
+    border: 1px solid #e4e8ef;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.graphview {
+    flex: 1 1 58%;
+    min-width: 0;
+    position: relative;
+}
+
+.graphview svg {
+    width: 100%;
+    height: 100%;
+    min-height: 280px;
+    max-height: 340px;
+    display: block;
+}
+
+.graphview .hint {
+    position: absolute;
+    left: 16px;
+    bottom: 10px;
+    font-size: .74em;
+    color: #b6bfcd;
+    letter-spacing: .04em;
+    pointer-events: none;
+}
+
+.graphview .gnode { cursor: pointer; }
+
+/* the graph is a UI widget, not body copy: a compact sans keeps the
+   abbreviations narrow enough to sit inside the circles */
+.graphview text {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+}
+
+@keyframes gnode-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.graphview .gnode {
+    opacity: 0;
+    animation: gnode-in .8s ease-out forwards;
+    transition: opacity .25s ease;
+}
+
+@keyframes gedge-in {
+    from { opacity: 0; }
+}
+
+.graphview .gedge {
+    animation: gedge-in 1.3s ease-out forwards;
+    transition: stroke .2s ease, stroke-opacity .2s ease, opacity .25s ease;
+}
+
+/* hover focus: whatever is off the lit path steps back */
+.graphview svg.focus .gnode:not(.lit) { opacity: .3; }
+.graphview svg.focus .gedge:not(.lit) { opacity: .18; }
+
+.graphview svg.settled .gnode,
+.graphview svg.settled .gedge {
+    animation: none;
+    opacity: 1;
+}
+
+.graphview svg.settled.focus .gnode:not(.lit) { opacity: .3; }
+.graphview svg.settled.focus .gedge:not(.lit) { opacity: .18; }
+
+@media (prefers-reduced-motion: reduce) {
+    .graphview .gnode, .graphview .gedge {
+        animation: none;
+        opacity: 1;
+    }
+    .graphpanel .panel-inner { animation: none; }
+}
+
+/* right panel */
+.graphpanel {
+    flex: 0 0 400px;
+    box-sizing: border-box;
+    padding: 22px 20px 18px;
+    border-left: 1px solid #e4e8ef;
+    background: #fafbfd;
+    font-size: .92em;
+    line-height: 1.55;
+    color: #444;
+    min-height: 280px;
+}
+
+@keyframes panel-up {
+    from { opacity: 0; transform: translateY(7px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.graphpanel .panel-inner { animation: panel-up .4s ease-out; }
+
+.graphpanel h3 {
+    margin: 0 0 .2em 0;
+    padding: 0;
+    border: none;
+    font-size: 1.15em;
+    letter-spacing: .01em;
+}
+
+.graphpanel .sub {
+    font-size: .78em;
+    color: #9aa3b2;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    margin-bottom: 1em;
+}
+
+.graphpanel ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.graphpanel li {
+    margin-bottom: .7em;
+    padding-left: 14px;
+    position: relative;
+}
+
+.graphpanel li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: .5em;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.graphpanel a {
+    color: #224b8d;
+    border-bottom: none;
+}
+
+.graphpanel a:hover {
+    border-bottom: 1px dotted #8aa2c8;
+}
+
+.graphpanel .date {
+    color: #9aa3b2;
+    font-size: .85em;
+}
+
+.graphpanel .empty { color: #9aa3b2; }
+
+/* ---- post rows: thumbnail on the left, title / excerpt / date ---- */
+
+.graphpanel ul.posts li { margin-bottom: 6px; padding-left: 0; }
+.graphpanel ul.posts li::before { content: none; }
+
+.graphpanel a.post {
+    display: flex;
+    gap: 13px;
+    align-items: flex-start;
+    padding: 7px;
+    margin: 0 -7px;          /* the hover wash bleeds past the text column */
+    border-radius: 9px;
+    border-bottom: none;
+    transition: background .16s ease;
+}
+
+.graphpanel a.post:hover {
+    background: #eef2f8;
+    border-bottom: none;
+}
+
+/* a real cover picture, cropped to fill -- not an icon on a plate */
+.graphpanel .thumb {
+    flex: 0 0 148px;
+    width: 148px;
+    height: 108px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    font: 700 12px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+    letter-spacing: .05em;
+}
+
+.graphpanel .thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.graphpanel .meta { min-width: 0; }      /* lets the text column shrink */
+
+.graphpanel .meta .t {
+    display: block;
+    color: #224b8d;
+    font-size: .95em;
+    line-height: 1.28;
+    margin-bottom: 3px;
+}
+
+.graphpanel a.post:hover .meta .t { border-bottom: 1px dotted #8aa2c8; }
+
+.graphpanel .meta .x {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    color: #838d9e;
+    font-size: .8em;
+    line-height: 1.4;
+    margin-bottom: 4px;
+}
+
+.graphpanel .meta .d {
+    display: block;
+    color: #9aa3b2;
+    font-size: .76em;
+}
+
+@media (max-width: 760px) {
+    .graphcard { flex-direction: column; }
+    .graphpanel {
+        flex-basis: auto;
+        border-left: none;
+        border-top: 1px solid #e4e8ef;
+        min-height: 0;
+    }
 }

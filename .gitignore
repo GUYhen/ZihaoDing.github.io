@@ -16,6 +16,8 @@ jo
 docs/link.html
 docs/mathjax.html
 docs/underscore.html
+# post templates are sources, not pages
+docs/blog/_*.html
 stage/
 
 # visitor log: never publish collected IPs

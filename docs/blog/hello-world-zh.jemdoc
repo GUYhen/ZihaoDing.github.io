@@ -1,0 +1,24 @@
+# jemdoc: menu{MENU}{hello-world-zh.html}, nofooter, nodefaultcss, addcss{../jemdoc.css}, addcss{post}, addjs{post}
+= 开始写这个博客
+
+~~~
+{}{raw}
+<div class="postmeta"
+     data-topic="机器遗忘"
+     data-date="2026 年 8 月 22 日"
+     data-lang="zh"
+     data-alt="hello-world.html"></div>
+~~~
+
+开这个地方，是想把自己在读、在做的东西记下来 —— 主要是联邦学习和联邦遗忘，
+偶尔也会拐到边缘系统上去。
+
+== 为什么要写下来
+
+论文里写的是最后跑通的那个结果。通往结果的推理过程，以及那些没走通的尝试，
+通常不会留下任何记录。这里就是留这部分的地方。
+
+== 会写些什么
+
+篇幅不长的笔记：一篇读着有用的论文，一个推了两遍才推明白的式子，
+或者一个花掉我一整天的 bug。

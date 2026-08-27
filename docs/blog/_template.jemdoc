@@ -1,20 +1,133 @@
-# jemdoc: menu{MENU}{<slug>.html}, nofooter, nodefaultcss, addcss{../jemdoc.css}
-= <Post title>
+# jemdoc: menu{MENU}{POST.html}, nofooter, nodefaultcss, addcss{../jemdoc.css}, addcss{post}, addjs{post}
+= Post Title
 
-/Posted <Month DD, YYYY>/
-
-Opening paragraph.
-
-== A section
-
-Body text. Italics with /slashes/, bold with *stars*, links like
-[https://example.com this].
-
-# figures live in blog/images/<slug>/
 ~~~
-{}{img_left}{images/<slug>/figure1.png}{alt text}{600}{}
+{}{raw}
+<div class="postmeta"
+     data-topic="Federated Unlearning"
+     data-date="August 26, 2026"
+     data-lang="en"
+     data-alt="POST-zh.html"></div>
 ~~~
 
-== Another section
+# =============================================================================
+# HOW THIS TEMPLATE WORKS
+#
+# One post = two files, one per language.  Never mix languages in one file.
+#     POST.jemdoc      data-lang="en"   data-alt="POST-zh.html"
+#     POST-zh.jemdoc   data-lang="zh"   data-alt="POST.html"
+# The header bar gets a back link to the blog and an EN / 中文 switch built
+# from those two attributes.  Drop data-alt and the switch disappears.
+#
+# post.js does the rest automatically:
+#   - numbers ==  and === headings as 1, 1.1, 1.2 ...
+#   - builds the "In this post" box from those headings (2 or more needed)
+#   - numbers figure captions
+#   - numbers footnote marks and links them to the list at the bottom
+#   - adds the "Back to all posts" link at the foot
+#
+# Build it from docs/blog/ :
+#     python ..\..\jemdoc -c ..\mysite.conf POST.jemdoc
+#
+# Everything below is a live example.  Delete what you do not use.
+# =============================================================================
 
-More text.
+~~~
+{}{raw}
+<div class="epigraph">
+"A quote worth opening with, if there is one."
+<span class="by">— Someone</span>
+</div>
+~~~
+
+An opening paragraph or two before the first heading, setting up what the post
+is about and why it is worth the reader's time. Body text is justified on a
+capped measure, the way the book sets its chapters.
+
+== First section
+
+Ordinary paragraphs. Links look like
+[https://arxiv.org/abs/2604.04243 this], /italics like this/, *bold like this*.
+
+{{<span class="lead">A run-in lead.</span>}} Open a paragraph with one of
+these when it argues a single point --- the book uses them heavily. The rest
+of the paragraph continues in normal weight.
+
+=== A subsection
+
+Subsections number themselves 1.1, 1.2 and show up indented in the box at
+the top.
+
+== Boxes
+
+Theorem-like blocks are raw HTML. Three flavours, all with a bold run-in head:
+
+~~~
+{}{raw}
+<div class="defn"><span class="head">Definition 1 (Federated unlearning).</span>
+Given a model trained over a set of clients, remove the influence of one
+client's data as if it had never taken part.
+</div>
+
+<div class="thm"><span class="head">Theorem 1.</span>
+Under assumptions A and B, the retrained and unlearned models agree to within
+\(\epsilon\).
+</div>
+
+<div class="note"><span class="head">Note.</span>
+An aside that is worth setting apart but is not a formal statement.
+</div>
+~~~
+
+== Math
+
+Inline math in ordinary text: $\|w_t - w_t^\star\|_2 \le \epsilon$ --- jemdoc
+rewrites those dollars into MathJax delimiters for you. It does not touch raw
+blocks, so inside one use MathJax's own delimiters instead: backslash-paren
+for inline, backslash-bracket for display, as in the theorem box above.
+
+Display math goes in a raw block so jemdoc leaves the backslashes alone:
+
+~~~
+{}{raw}
+\[
+  \min_{\theta}\; \sum_{k=1}^{K} p_k\, F_k(\theta)
+  \quad\text{subject to}\quad \mathcal{I}(D_j;\theta) = 0 .
+\]
+~~~
+
+== Figures
+
+~~~
+{}{raw}
+<figure>
+  <img src="images/POST/fig1.png" alt="what the figure shows">
+  <figcaption>What the reader should take from it. Do not write the
+  number --- post.js prefixes "Figure 1:" in document order.</figcaption>
+</figure>
+~~~
+
+Put the images in {{<code>docs/blog/images/POST/</code>}}.
+
+== Footnotes
+
+Mark them inline with a raw span{{<sup class="fn"></sup>}} and they are
+numbered in reading order. A second one here{{<sup class="fn"></sup>}}.
+
+~~~
+{}{raw}
+<div class="footnotes"><ol>
+<li>The first note. Numbering and the anchor are wired up by post.js.</li>
+<li>The second note.</li>
+</ol></div>
+~~~
+
+== References
+
+~~~
+{}{raw}
+<div class="refs"><ol>
+<li>A. Author, "Title of the paper," <i>Venue</i>, 2026.
+    <a href="https://arxiv.org/abs/0000.00000">arXiv</a></li>
+</ol></div>
+~~~

@@ -1,0 +1,33 @@
+# jemdoc: menu{MENU}{federated-unlearning.html}, nofooter, nodefaultcss, addcss{../jemdoc.css}, addcss{post}, addjs{post}
+= Federated Unlearning
+
+~~~
+{}{raw}
+<div class="postmeta"
+     data-topic="Federated Unlearning"
+     data-date="August 26, 2026"
+     data-lang="en"
+     data-alt="federated-unlearning-zh.html"></div>
+~~~
+
+# ---------------------------------------------------------------------------
+# Yours to write.  The Chinese version is a separate file --- keep the two
+# independent, do not interleave languages here.
+#
+#   ==  section (numbers itself 1, 2, ...)      ===  subsection (1.1, 1.2)
+#   /italics/   *bold*   +monospace+   [url link text]
+#   $inline math$;  display math goes in a  ~~~ {}{raw} ... ~~~  block
+#
+# Theorem / definition / note boxes, figures, footnotes and references:
+# copy the pattern from _template.jemdoc.
+#
+# Build from docs/blog/ :
+#     python ..\..\jemdoc -c ..\mysite.conf federated-unlearning.jemdoc
+#     python ..\..\jemdoc -c ..\mysite.conf federated-unlearning-zh.jemdoc
+# ---------------------------------------------------------------------------
+
+Write the opening here.
+
+== First section
+
+Write the first section here.
