@@ -170,22 +170,20 @@ Zihao Ding received his B.S. degree in Electronic and Information Engineering fr
 </div>
 ~~~
 
+# NOTE: no blank lines between the "." items -- a blank line ends the
+# list, and the next paper starts a brand new one numbered from 1 again.
 . *Z. Ding*, J. Huang, Y. Zhao, Z. Cai, "Combating Knowledge Diversity and Catastrophic Forgetting in UAV-Assisted Collaborative Vehicular Learning: A Game-Theoretic Approach", ACM Transactions on Autonomous and Adaptive Systems (TAAS), 2026. \[[https://dl.acm.org/doi/10.1145/3820769 PDF]\]
-
 . *Z. Ding*, J. Huang, J. Qi, "Learning to Defend: A Multi-Agent Reinforcement Learning Framework for Stackelberg Security Game in Mobile Edge Computing", International Conference on Computing, Networking and Communications (ICNC), 2026. \[[https://ieeexplore.ieee.org/document/11416846 PDF]\] *|* \[[https://github.com/GUYhen/Learning_to_Defend Code]\]
-
 . *Z. Ding*, J. Huang, Q. Duan, C. Zhang, Y. Zhao, S. Gu, "A Dual-Level Game-Theoretic Approach for Collaborative Learning in UAV-Assisted Heterogeneous Vehicle Networks", IPCCC, 2025. (*Best Paper Award, 1\/34\/147, CCF-C*) \[[https://ieeexplore.ieee.org/document/11304656 PDF]\] 
 
 
 == Co-Author Papers
+# NOTE: no blank lines between the "." items -- a blank line ends the
+# list, and the next paper starts a brand new one numbered from 1 again.
 . B. Wu, *Z. Ding*, J. Huang, Y. Zhao, "Forget to Improve: On-Device LLM-Agent Continual Learning via Budget-Curated Memory", arXiv, 2026. (/Preprint/) \[[https://arxiv.org/abs/2606.25115 PDF]\]
-
 . B. Wu, *Z. Ding*, J. Huang, "RELIEF: Turning Missing Modalities into Training Acceleration for Federated Learning on Heterogeneous IoT Edge", IEEE Internet of Things Journal, 2026. \[[https://arxiv.org/abs/2604.04243 PDF]\]
-
 . B. Wu, *Z. Ding*, J. Huang, "PRISM: Exposing and Resolving Spurious Isolation in Federated Multimodal Continual Learning", IEEE Transactions on Multimedia, 2026. \[[https://arxiv.org/abs/2605.01061 PDF]\]
-
 . B. Wu, *Z. Ding*, J. Huang, "A Review of Continual Learning in Edge AI", IEEE Transactions on Network Science and Engineering, 2026. \[[https://ieeexplore.ieee.org/document/11363404 PDF]\]
-
 . C. Xing, *Z. Ding*, J. Huang, "A Stochastic Geometry-Based Analysis of SWIPT-Assisted Underlaid Device-to-Device Energy Harvesting", ACM Applied Computing Review, 2025. \[[https://dl.acm.org/doi/abs/10.1145/3787594.3787596 PDF]\] \n
 
 == Visitors

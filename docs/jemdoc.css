@@ -215,6 +215,12 @@ ol {
 	list-style-type: decimal;
 }
 
+/* One publication per item, all under a single <ol> -- keep them breathing
+   the way separate lists used to. */
+#layout-content ol > li + li {
+	margin-top: 0.55em;
+}
+
 li p, dd p {
 	margin-bottom: 0.3em;
 }
