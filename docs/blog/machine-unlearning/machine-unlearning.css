@@ -1,0 +1,32 @@
+/* Local presentation of the bilingual notation table. */
+article.chapter .notation-table {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-collapse: collapse;
+    margin: 1em 0;
+    font-size: .94rem;
+    line-height: 1.6;
+}
+
+article.chapter .notation-table th,
+article.chapter .notation-table td {
+    padding: 10px 14px;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+}
+
+article.chapter .notation-table th {
+    background: var(--bg-soft);
+    font-weight: 700;
+}
+
+article.chapter .notation-table td:first-child {
+    white-space: nowrap;
+}
+
+article.chapter figcaption {
+    max-width: 740px;
+    text-align: left;
+}

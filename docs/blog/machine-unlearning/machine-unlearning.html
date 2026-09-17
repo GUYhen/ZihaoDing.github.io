@@ -1,0 +1,404 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta name="generator" content="jemdoc, see http://jemdoc.jaboc.net/" />
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<link rel="stylesheet" href="../../jemdoc.css" type="text/css" />
+<link rel="stylesheet" href="../post.css" type="text/css" />
+<link rel="stylesheet" href="machine-unlearning.css" type="text/css" />
+<script src="../post.js" type="text/javascript"></script>
+<title>Machine Unlearning</title>
+<!-- Favicon -->
+<link rel="icon" href="../../favicon.png" type="image/png">
+<link rel="shortcut icon" href="../../favicon.png" type="image/png">
+<!-- MathJax -->
+<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML' async>
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+	  TeX: { equationNumbers: { autoNumber: "AMS" } }
+});
+</script>
+<!-- End MathJax -->
+</head>
+<body>
+<table summary="Table for page layout." id="tlayout">
+<tr valign="top">
+<td id="layout-menu">
+<div class="menu-category">Zihao Ding</div>
+<div class="menu-item"><a href="../../index.html">Home</a></div>
+<div class="menu-item"><a href="../../publications.html">Publication</a></div>
+<div class="menu-item"><a href="../../awards.html">Awards</a></div>
+<div class="menu-item"><a href="../../blog.html" class="current">Blog</a></div>
+</td>
+<td id="layout-content">
+<div id="toptitle">
+<h1>Machine Unlearning</h1>
+</div>
+<div class="postmeta" data-topic="Machine Unlearning" data-date="September 17, 2026" data-lang="en" data-alt="machine-unlearning-zh.html"></div>
+<p>Suppose a hospital helped train a diagnostic model and later asks for its patients&rsquo; records to be removed. Deleting the files prevents their use in future training. It does not change the model already trained on them. The model may still make predictions differently because those records were present, and it may reveal details about them. Machine unlearning studies how to remove that training influence while keeping the model useful. Cao and Yang's early work helped establish this problem<span class="cite" data-ref="cao2015"></span>.
+</p>
+<p>The same problem arises when a dataset contains incorrect labels, when a participant leaves a training collaboration, or when an operator discovers poisoned examples. These requests are related, but their success criteria can differ. Repairing accuracy after poisoning is not automatically evidence that every effect of the poisoned records has been removed.
+</p>
+<p>The most direct solution is to train again using only the permitted data. That gives us both a valid method and a reference against which faster methods can be judged. The difficulty is to save computation without silently weakening the claim. This article builds that comparison carefully, then follows it through centralised learning, federated learning, language models, evaluation, and repeated deletion requests. Every figure below is a crop from the paper under discussion, with the original figure number, page and source given in the caption. <a class="figref" data-fig="1"></a> is the rewrite Cao and Yang proposed.
+</p>
+<figure id="fig-1">
+<a href="images/cao-yang-figure-1.png"><img src="images/cao-yang-figure-1.png" width="640" alt="Original Cao and Yang diagram: on the left a model depends directly on each training sample; on the right the algorithm is rewritten as a small number of summations." loading="lazy"></a>
+<figcaption>Where unlearning intervenes. Reproduced as a cropped PNG from Cao and Yang, <i>Towards Making Systems Forget with Machine Unlearning</i>, original Fig. 1, PDF p. 2 <span class="cite" data-ref="cao2015"></span> (<a href="https://yinzhicao.org/unlearning/UnlearningOakland15.pdf#page=2">source PDF</a>). On the left the model depends on every training sample directly, so withdrawing one sample means training again. On the right the algorithm is first rewritten as a small number of summations over transformed samples, and a deletion updates those summations instead. The rewrite is available only for algorithms that can be put in that form, so it is a construction for a class of methods rather than a general solution.</figcaption>
+</figure>
+<h2>What does it mean for a model to forget?</h2>
+<h3>Start with the data and the training procedure</h3>
+<p>Let \(\mathcal{D}\) be the original training dataset. A request specifies the forget set \(\mathcal{D}^{\textrm{f}} \subseteq \mathcal{D}\); the retain set is \(\mathcal{D}^{\textrm{r}}=\mathcal{D}\setminus\mathcal{D}^{\textrm{f}}\). Here records have identities: two identical-looking records can still be separate training examples. Unless stated otherwise, the retain set is nonempty.
+</p>
+<p>Write \(\mathcal{A}\) for the complete training procedure and \(\boldsymbol{\theta}^{\textrm{old}}=\mathcal{A}(\mathcal{D})\) for its trained parameters. The word <i>complete</i> matters. The architecture, preprocessing, optimiser, stopping rule, and distribution of random seeds are all part of the reference procedure. Changing them only for the retrained baseline changes the question being tested.
+</p>
+<p>The following table fixes the notation used throughout. Bold Latin letters denote vectors or matrices; bold Greek letters denote Greek vectors. Time goes in square brackets, entity indices in subscripts, and identity tags in upright superscripts, following the site's notation rules.
+</p>
+<div style="overflow-x:auto"><table class="notation-table">
+<thead><tr><th>Symbol</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td>\(\mathcal{D},\mathcal{D}^{\textrm{f}},\mathcal{D}^{\textrm{r}}\)</td><td>Original, forget, and retain datasets; tags f and r abbreviate forget and retain.</td></tr>
+<tr><td>\(\mathcal{A},\mathcal{U}\)</td><td>Training and unlearning algorithms.</td></tr>
+<tr><td>\(\boldsymbol{\theta}^{\textrm{old}},\boldsymbol{\theta}^{\textrm{unl}},\boldsymbol{\theta}^{\star}\)</td><td>Original, unlearned, and retrained model parameters.</td></tr>
+<tr><td>\(f(\mathbf{x};\boldsymbol{\theta})\)</td><td>Model prediction for input vector \(\mathbf{x}\); \(y\) is its target label.</td></tr>
+<tr><td>\(\mathcal{S};\epsilon,\delta\)</td><td>A measurable set of model parameters; nonnegative multiplicative budget and additive probability slack, with \(0\leq\delta&lt;1\).</td></tr>
+<tr><td>\(\mathcal{D}_k; k,N\)</td><td>Client \(k\)'s dataset; client index and total number of clients.</td></tr>
+<tr><td>\(\boldsymbol{\theta}[t]; t,T\)</td><td>Global parameters at round \(t\); round index and total training rounds.</td></tr>
+<tr><td>\(\mathcal{Q}^{\textrm{f}},\mathcal{Q}^{\textrm{r}}\)</td><td>Forget and utility query sets for evaluating a language model.</td></tr>
+</tbody></table></div>
+<p>For now, consider a centralised setting in which the unlearning algorithm can access both data subsets. Its output and reference are
+</p>
+<p style="text-align:center">
+\[
+\begin{aligned}
+\boldsymbol{\theta}^{\textrm{unl}}&amp;=\mathcal{U}(\boldsymbol{\theta}^{\textrm{old}},\mathcal{D},\mathcal{D}^{\textrm{f}}),\\
+\boldsymbol{\theta}^{\star}&amp;=\mathcal{A}(\mathcal{D}^{\textrm{r}}).
+\end{aligned}
+\]
+</p><p>This interface describes available information, not a requirement to read every record. Some methods also retain checkpoints or training statistics. Those are additional algorithm state and must be included in the storage cost and, when relevant, in the guarantee. Later sections explain what changes when the server cannot access the data.
+</p>
+<h3>Why the reference is a distribution</h3>
+<p>Random initialisation, minibatch ordering, and other training randomness can produce different weights from the same dataset. Thus \(\boldsymbol{\theta}^{\star}\) is generally a random variable. The comparison concerns the distribution induced by repeated runs of the specified algorithm, not equality with one conveniently chosen checkpoint. A deterministic algorithm is the special case in which all probability is concentrated on one output.
+</p>
+<p>As illustrated in <a class="figref" data-fig="2"></a>, removing a training influence need not restore the particular weights that existed before the record was learned. Another valid training run on the retained data can end elsewhere.
+</p>
+<figure id="fig-2">
+<a href="images/sisa-figure-1.png"><img src="images/sisa-figure-1.png" width="600" alt="Original SISA paper diagram comparing training, checkpoint rollback, and retraining after deleting a point." loading="lazy"></a>
+<figcaption>Training history and retraining are different paths. Reproduced as a cropped PNG from Bourtoule et al., <i>Machine Unlearning</i>, original Fig. 1, PDF p. 4 <span class="cite" data-ref="bourtoule2021"></span> (<a href="https://arxiv.org/pdf/1912.03817v3#page=4">source PDF</a>). The paper's \(D\) corresponds to our retain set; its added point is the forget set in this one-record example. The two lower models are different runs on the same retained data. The diagram motivates the comparison; it is not a general impossibility theorem for every model family.</figcaption>
+</figure>
+<div class="defn"><span class="head">Definition 1 (Exact unlearning, one fixed request).</span>
+For a specified training algorithm \(\mathcal{A}\), the algorithm \(\mathcal{U}\) achieves exact unlearning if, for every admissible dataset and forget set,
+\[
+\boldsymbol{\theta}^{\textrm{unl}}\stackrel{\textrm{d}}{=}\boldsymbol{\theta}^{\star}.
+\]
+The symbol \(\stackrel{\textrm{d}}{=}\) means equality in distribution: both outputs fall in every measurable set \(\mathcal{S}\) with the same probability. Probability is taken over the algorithms' randomness, with the data and request held fixed.</div>
+<p>This distributional view is developed in work such as Ginart et al. and Bourtoule et al.<span class="cite" data-ref="ginart2019 bourtoule2021"></span>. Full retraining satisfies it directly. An efficient exact method must reproduce the reference distribution with less work, for example by updating sufficient statistics or retraining only independent components. Exactness is always relative to the specified \(\mathcal{A}\); it does not mean that every learning pipeline should produce the same model.
+</p>
+<h3>Approximate guarantees and what an observer sees</h3>
+<div class="defn"><span class="head">Definition 2 (Two-sided \((\epsilon,\delta)\)-unlearning).</span>
+For every admissible fixed dataset and request, and every measurable set of parameters \(\mathcal{S}\), require both
+\[
+\begin{aligned}
+\Pr[\boldsymbol{\theta}^{\textrm{unl}}\in\mathcal{S}]&\leq e^{\epsilon}\Pr[\boldsymbol{\theta}^{\star}\in\mathcal{S}]+\delta,\\
+\Pr[\boldsymbol{\theta}^{\star}\in\mathcal{S}]&\leq e^{\epsilon}\Pr[\boldsymbol{\theta}^{\textrm{unl}}\in\mathcal{S}]+\delta.
+\end{aligned}
+\]
+Here \(\epsilon\geq0\) bounds a multiplicative discrepancy and \(0\leq\delta&lt;1\) permits additive probability slack. This is a model-output guarantee for a single request fixed independently of training randomness.</div>
+<p>An event \(\mathcal{S}\) can represent the set of models on which an observer declares, &ldquo;this looks unlearned rather than retrained.&rdquo; The inequalities constrain every such measurable decision rule. Smaller budgets mean a stronger comparison; \(\epsilon=\delta=0\) gives exact equality. The additive term is not a fraction of training records that may be ignored. Nor do the inequalities mean that predictions must agree on every input in a particular pair of runs.
+</p>
+<p>Certified-removal and theoretical unlearning papers use this kind of distributional comparison, with differences in the permitted requests, state, and assumptions<span class="cite" data-ref="guo2020 sekhari2021 neel2021"></span>. A paper that reports similar test accuracy alone has not established Definition 2. If the attacker also sees old model versions, checkpoints, or intermediate messages, the observable object is larger than the final parameter vector and needs its own analysis.
+</p>
+<p>Differential privacy helps explain the form of the bound<span class="cite" data-ref="dwork2014"></span>. If \(\mathcal{A}\) is differentially private under <i>add-or-remove-one-record</i> adjacency, keeping its output unchanged already satisfies the corresponding comparison for one fixed record deletion. Deleting a whole client or a large group requires a group guarantee, whose budgets generally worsen with group size. This observation does not make a record-level privacy guarantee a free client-level deletion guarantee, and it says nothing by itself about removing stored copies of the raw data.
+</p>
+<h3>Decide what the request actually removes</h3>
+<p>A sample request identifies records. A class request identifies all training examples with a chosen label. A client request identifies one participant's local records. They can all be expressed as choices of \(\mathcal{D}^{\textrm{f}}\), but their size and relation to the remaining data differ substantially.
+</p>
+<p>Feature and label correction need a slightly different reference. If a user withdraws one sensitive field while allowing other fields to remain, deleting the entire row may discard too much. The target dataset contains <i>edited</i> records, and the reference should be training on that edited dataset. Warnecke et al. study this distinction explicitly<span class="cite" data-ref="warnecke2023"></span>. One should specify this transformation before comparing algorithms.
+</p>
+<h2>How centralised methods save work</h2>
+<h3>SISA: make the affected part small</h3>
+<p>SISA stands for Sharded, Isolated, Sliced, and Aggregated<span class="cite" data-ref="bourtoule2021"></span>. It changes the training procedure before any deletion arrives. Split the records into disjoint shards, train a separate constituent model on each shard, and aggregate their predictions. Within a shard, introduce data in successive slices and save a checkpoint before each new slice is used.
+</p>
+<p>When a record is deleted, locate its shard and its earliest affected slice. Restore a checkpoint from before that record entered training, then rerun the affected suffix without the record. The other shard models can be reused. If several records are deleted, every affected shard must be repaired, starting before the earliest affected slice in that shard.
+</p>
+<figure id="fig-3">
+<a href="images/sisa-figure-2.png"><img src="images/sisa-figure-2.png" width="650" alt="SISA original framework with disjoint shards, slices, independent constituent models, and prediction aggregation." loading="lazy"></a>
+<figcaption>The red record affects one constituent model. Reproduced from Bourtoule et al., original Fig. 2, PDF p. 6 <span class="cite" data-ref="bourtoule2021"></span> (<a href="https://arxiv.org/pdf/1912.03817v3#page=6">source PDF</a>). The figure's \(S\) counts shards and \(R\) counts slices; these original labels are not our measurable set \(\mathcal{S}\). A slice checkpoint saves the prefix of training, while sharding saves work on other models.</figcaption>
+</figure>
+<p>For an intuitive example, imagine ten equally expensive shards and one deletion in one shard. Only that constituent model needs repair; slicing may reduce its cost further. This is a workload illustration, not a universal tenfold wall-clock speedup. Parallelism, checkpoint loading, aggregation, and the location of the record all affect elapsed time.
+</p>
+<p>The exactness claim compares against the <i>same SISA training procedure</i> on the retained records, with consistent partition, randomisation, and checkpoint semantics. It is not equality with a single neural network trained on the whole retained dataset. Preprocessing shared across shards must also avoid retaining the deleted record's influence. SISA pays for deletion efficiency through checkpoint storage, ensemble inference, and potentially weaker constituent models because each sees less data.
+</p>
+<h3>A Newton update: estimate how the optimum moves</h3>
+<p>Another approach starts with the original model and estimates how its optimum changes after deletion. To make the calculation precise, let \(\mathcal{B}\) denote a nonempty dataset and define
+</p>
+<p style="text-align:center">
+\[
+\mathcal{J}(\boldsymbol{\theta};\mathcal{B})=
+\frac{1}{|\mathcal{B}|}\sum_{(\mathbf{x},y)\in\mathcal{B}}c(\boldsymbol{\theta};\mathbf{x},y)
++\frac{\lambda}{2}\|\boldsymbol{\theta}\|_2^2.
+\]
+</p><p>Here \(c\) is the per-example loss, \(\lambda&gt;0\) controls quadratic regularisation, and \(\|\cdot\|_2\) is the Euclidean norm. Write \(\mathcal{J}^{\textrm{r}}(\boldsymbol{\theta})=\mathcal{J}(\boldsymbol{\theta};\mathcal{D}^{\textrm{r}})\) for the retain objective. For this local argument, assume it is twice differentiable and strongly convex, and treat \(\boldsymbol{\theta}^{\textrm{old}}\) as an accurately optimised starting point. Define its retain gradient and Hessian as
+</p>
+<p style="text-align:center">
+\[
+\mathbf{g}^{\textrm{r}}=\nabla\mathcal{J}^{\textrm{r}}(\boldsymbol{\theta}^{\textrm{old}}),\qquad
+\mathbf{H}^{\textrm{r}}=\nabla^2\mathcal{J}^{\textrm{r}}(\boldsymbol{\theta}^{\textrm{old}}).
+\]
+</p><p>The gradient measures how far the old model is from stationarity on the retained data. The Hessian measures local curvature. Linearising the retain gradient and setting that approximation to zero gives the Newton candidate
+</p>
+<p style="text-align:center">
+\[
+\boldsymbol{\theta}^{\textrm{new}}=
+\boldsymbol{\theta}^{\textrm{old}}-(\mathbf{H}^{\textrm{r}})^{-1}\mathbf{g}^{\textrm{r}}.
+\]
+</p><p>This is the general optimisation intuition behind influence-based removal, not a transcription of Guo et al.'s certified algorithm. Even in a convex problem, one Newton step need not reach the exact retain optimum. The remaining gradient, approximation errors, and the original training error all matter. In a large neural network, strong convexity and an affordable invertible Hessian are usually unavailable, so this derivation alone supplies no certificate.
+</p>
+<p>Guo et al. combine a removal update with random perturbation and a bound on the remaining gradient to obtain certified removal for their stated model class<span class="cite" data-ref="guo2020"></span>. The certificate depends on how the model was trained and how that residual is controlled. Adding arbitrary noise to an arbitrary edited model is insufficient.
+</p>
+<figure id="fig-4">
+<a href="images/certified-removal-figure-1.png"><img src="images/certified-removal-figure-1.png" alt="Three original plots showing accuracy versus perturbation, removal budget, and supported deletion count." loading="lazy"></a>
+<figcaption>The accuracy cost of a removal guarantee. Reproduced from Guo et al., original Fig. 1, PDF p. 6 <span class="cite" data-ref="guo2020"></span> (<a href="https://proceedings.mlr.press/v119/guo20c/guo20c.pdf#page=6">source PDF</a>). These are the paper's MNIST binary logistic-regression results, not results for a deep network. In the original notation, \(\lambda\) is regularisation strength and \(\sigma\) is perturbation standard deviation. The right panel uses \(\epsilon=1\) and shows that supporting more deletions can cost accuracy. Click any figure to inspect the full PNG.</figcaption>
+</figure>
+<h3>Gradient ascent and SCRUB: change behaviour while retaining utility</h3>
+<p>For deep models, many practical methods use loss-based updates without a distributional certificate. Define the average forget loss \(\mathcal{J}^{\textrm{f}}\) by averaging \(c\) over \(\mathcal{D}^{\textrm{f}}\), without the regulariser. Gradient ascent takes steps of the form
+</p>
+<p style="text-align:center">
+\[
+\boldsymbol{\theta}[t+1]=\boldsymbol{\theta}[t]+\eta\nabla\mathcal{J}^{\textrm{f}}(\boldsymbol{\theta}[t]),\qquad \eta&gt;0.
+\]
+</p><p>Here \(t\) indexes optimisation steps and \(\eta\) is the step size. Increasing the loss makes the deleted examples harder to predict. But the same parameters support other examples, so this can damage useful behaviour. It can also make deleted records unusually easy to identify because their loss becomes abnormally high.
+</p>
+<p>SCRUB addresses the utility trade-off with a teacher and a student<span class="cite" data-ref="kurmanji2023"></span>. The teacher is the frozen original model; the student starts from its weights. On retained examples, the student is encouraged to match the teacher and predict the true labels. On forget examples, it is pushed away from the teacher. The algorithm alternates these updates and performs additional retain updates. SCRUB+R selects an earlier checkpoint to avoid excessive forget error in privacy-oriented applications. These are concrete training and checkpoint-selection rules, not proofs of Definition 2.
+</p>
+<p>Other approaches store and reverse selected training updates or modify weights using curvature information<span class="cite" data-ref="graves2021 golatkar2020"></span>. Their key question is the same: which dependencies are actually removed, and which are only approximated? Subtracting an old update does not undo all later updates computed from the model it changed.
+</p>
+<h2>Federated and structured data: access changes the algorithm</h2>
+<h3>Define the federated reference first</h3>
+<p>In federated learning, \(N\) clients train a model \(f(\cdot;\boldsymbol{\theta})\) while retaining their local datasets \(\mathcal{D}_k\). Let \(\mathcal{D}=\bigcup_{k=1}^{N}\mathcal{D}_k\) denote the union of all local datasets, with record identities distinguishing copies held by different clients. Let \(k^{\textrm{f}}\) identify the departing client. Its client-level request sets \(\mathcal{D}^{\textrm{f}}=\mathcal{D}_{k^{\textrm{f}}}\). The retraining reference reruns the stated federated protocol without those records and without that client's training contribution.
+</p>
+<p>For a simple full-participation example, let \(\boldsymbol{\Delta}_k[t]\) be client \(k\)'s local parameter change after starting from \(\boldsymbol{\theta}[t]\). Let \(\omega_k=|\mathcal{D}_k|/|\mathcal{D}|\) be its aggregation weight. The server update is
+</p>
+<p style="text-align:center">
+\[
+\boldsymbol{\theta}[t+1]=\boldsymbol{\theta}[t]+\sum_{k=1}^{N}\omega_k\boldsymbol{\Delta}_k[t].
+\]
+</p><p>The index \(k\) ranges over clients and \(t=0,\ldots,T-1\) indexes rounds. Removing client \(k^{\textrm{f}}\) changes the aggregation weights and the model received by every remaining client in later rounds. Therefore the recorded \(\boldsymbol{\Delta}_k[t]\) generally differs from the update client \(k\) would have computed in a run where client \(k^{\textrm{f}}\) had never participated. This is why deleting the target's saved updates is not generally exact unlearning.
+</p>
+<h3>What FedEraser reuses, and what it recomputes</h3>
+<p>FedEraser stores historical client updates and uses remaining clients to calibrate updates during reconstruction<span class="cite" data-ref="liu2021"></span>. Roughly, the saved updates provide information about update magnitudes, while new local computation supplies directions appropriate to the reconstructed trajectory. It trades server storage and additional client participation for less computation than complete retraining.
+</p>
+<figure id="fig-5">
+<a href="images/federaser-figure-1.png"><img src="images/federaser-figure-1.png" alt="FedEraser results compare test and deleted-client accuracy against accumulated updates, federated retraining, and the original model." loading="lazy"></a>
+<figcaption>Compare the red FedEraser bars with the green FedRetrain bars in both panels. Reproduced from Liu et al., <i>FedEraser</i>, original Fig. 1, PDF p. 5 of its arXiv version <span class="cite" data-ref="liu2021"></span> (<a href="https://arxiv.org/pdf/2012.13891v3#page=5">source PDF</a>). “Target Data” means the departing client's data. Its retrained accuracy remains high on several datasets because other clients supply useful information. Matching these bars is empirical evidence on these tasks, not a distributional certificate.</figcaption>
+</figure>
+<p>The protocol assumptions deserve as much attention as the optimisation. Are remaining clients available? Are individual historical updates stored, or does secure aggregation expose only their sum? Is the departing client willing to participate once more? These conditions determine whether a method can even be run.
+</p>
+<p>For example, Wu et al. combine subtraction of historical contributions with knowledge distillation, using unlabelled auxiliary data for recovery rather than requiring client data<span class="cite" data-ref="wu2022"></span>. Halimi et al. first perform local unlearning at the departing client, then run recovery rounds with the remaining clients<span class="cite" data-ref="halimi2022"></span>. It would be misleading to describe the latter as requiring only the departing client's computation. Neither protocol should inherit a centralised guarantee merely because both edit model weights.
+</p>
+<h3>Graphs and recommendation change what a record means</h3>
+<p>With a graph model, deleting a node also changes the edges and neighbourhoods through which other nodes receive messages. The reference must state whether the request removes the node, its incident edges, its features, or a particular training label. GraphEraser adapts partition-and-retrain ideas to this structured setting<span class="cite" data-ref="chen2022"></span>.
+</p>
+<p>A recommendation system has a similar dependency through user-item interactions. Removing one interaction is different from removing an entire user and all of that user's interactions. Federated on-device recommendation combines this structure with restricted access to local data<span class="cite" data-ref="yuan2023"></span>. These cases explain why a row-deletion method cannot be transferred simply by renaming its dataset.
+</p>
+<h2>Language models: deleting records and removing knowledge</h2>
+<h3>The definition still applies; obtaining the reference is harder</h3>
+<p>A language model can be asked to forget a known fine-tuning subset, a person's private details, a document, or a capability. These are not interchangeable targets. If the training records are known, the same retraining definition remains meaningful. For a broad concept, however, the relevant evidence may occur in many documents, paraphrases, and languages. Even identifying \(\mathcal{D}^{\textrm{f}}\) becomes part of the problem.
+</p>
+<p>It is useful to separate <i>a mathematical reference</i> from <i>a reference we can afford to construct</i>. Retraining a large base model may be impractical, but that does not make \(\mathcal{A}(\mathcal{D}^{\textrm{r}})\) undefined. Controlled fine-tuning tasks can construct a reference and are particularly helpful for studying this gap.
+</p>
+<p>TOFU is such a task<span class="cite" data-ref="maini2024"></span>. It introduces fictitious author profiles through fine-tuning and selects some authors for deletion. A retain-only model is fine-tuned from the same starting checkpoint without those authors. This is a controlled reference for the added fine-tuning information; it is not a claim to know every fact present in pretraining.
+</p>
+<figure id="fig-6">
+<a href="images/tofu-figure-1.png"><img src="images/tofu-figure-1.png" width="720" alt="TOFU original illustration shows a pretrained language model fine-tuned on fictitious author data and then unlearned on a subset." loading="lazy"></a>
+<figcaption>A controlled task makes the data lineage explicit. Reproduced from Maini et al., <i>TOFU</i>, original Fig. 1, PDF p. 1 <span class="cite" data-ref="maini2024"></span> (<a href="https://arxiv.org/pdf/2401.06121v1#page=1">source PDF</a>). The illustration shows the starting model, fine-tuning, and deletion. Evaluation additionally uses a retain-only fine-tuned reference, which is not drawn here. The artwork illustrates the task, not evidence that a method succeeds.</figcaption>
+</figure>
+<h3>What the loss is trying to change</h3>
+<p>Let \(q\) be a prompt and \(y\) a target answer sequence. We continue to use \(y\) for the prediction target, now a text sequence rather than a class label. Write \(p_{\boldsymbol{\theta}}(y\mid q)\) for the model's conditional probability of that sequence, obtained from its token probabilities. The negative log-likelihood is
+</p>
+<p style="text-align:center">
+\[
+c(\boldsymbol{\theta};q,y)=-\log p_{\boldsymbol{\theta}}(y\mid q).
+\]
+</p><p>This is the language-model instance of the per-example loss introduced earlier. Gradient ascent on forget examples lowers the probability of their target answers. Without a retain objective or another constraint, it can also impair language generation well beyond the requested material.
+</p>
+<p>Negative preference optimisation uses the original model as a reference and changes the update pressure as the unwanted answer becomes less likely<span class="cite" data-ref="zhang2024"></span>. It is designed to improve the forgetting-utility trade-off over plain ascent. Its objective is not a universal proof that knowledge has been erased. Other approaches construct replacement targets, as in the Harry Potter study, or alter internal representations, as in the representation-misdirection method evaluated with WMDP<span class="cite" data-ref="eldan2023 li2024"></span>. Their training targets need to be judged against the particular deletion or capability-removal goal.
+</p>
+<h3>Query-based evaluation is useful but narrower</h3>
+<p>Let \(\mathcal{Q}^{\textrm{f}}\) contain prompts intended to elicit the target material and \(\mathcal{Q}^{\textrm{r}}\) contain prompts testing useful capabilities. These are evaluation queries, not necessarily training examples. When a retrained reference exists, compare answer behaviour with that reference on both sets. Otherwise, state the chosen behavioural target explicitly: refusal, reduced verbatim reproduction, lower target-answer probability, or reduced performance on a capability benchmark.
+</p>
+<p>Each target answers a different question. A refusal on the original wording does not establish removal under paraphrase. A fact may remain inferable from permitted information. Conversely, deleting records correctly need not stop the model from making that inference. Robust evaluation should therefore vary prompts and access conditions, and test whether fine-tuning restores the targeted behaviour<span class="cite" data-ref="lynch2024"></span>. Fast recovery is a warning sign relative to a suitable baseline, not by itself proof that the exact original information remained stored unchanged.
+</p>
+<h2>How to evaluate an unlearning claim</h2>
+<h3>Keep forgetting, utility, and cost separate</h3>
+<p>The most useful comparison includes the original model, a no-op baseline, retain-only fine-tuning, full retraining, and the proposed method. Run them on the same request and define how hyperparameters were selected. Where training is random, repeat runs and report variation. A method should not be allowed to choose a favourable retraining run while its competitors are averaged over seeds.
+</p>
+<figure id="fig-7">
+<a href="images/scrub-figure-1.png"><img src="images/scrub-figure-1.png" alt="SCRUB original radar charts compare forget error, retain accuracy, test accuracy, and runtime scale-up across three removal settings." loading="lazy"></a>
+<figcaption>Several axes are needed to describe one method. Reproduced from Kurmanji et al., <i>Towards Unbounded Machine Unlearning</i>, original Fig. 1, PDF p. 5 <span class="cite" data-ref="kurmanji2023"></span> (<a href="https://arxiv.org/pdf/2302.09880v3#page=5">source PDF</a>). These panels concern the paper's removing-bias application, where high forget error is desirable. That direction is not a universal privacy criterion. “Scale-up” is the paper's relative runtime measure, multiplied by five for display in these plots; it is not an accuracy score. Open the PNG to read the small legends.</figcaption>
+</figure>
+<p>For a classification dataset \(\mathcal{B}\), define accuracy as
+</p>
+<p style="text-align:center">
+\[
+\mathrm{Acc}(\boldsymbol{\theta};\mathcal{B})=
+\frac{1}{|\mathcal{B}|}\sum_{(\mathbf{x},y)\in\mathcal{B}}
+\mathbf{1}\{f(\mathbf{x};\boldsymbol{\theta})=y\}.
+\]
+</p><p>Here \(f\) returns a predicted class and the indicator \(\mathbf{1}\{\cdot\}\) equals one when its statement is true and zero otherwise. Forget accuracy evaluates this quantity on \(\mathcal{D}^{\textrm{f}}\); retain accuracy evaluates it on \(\mathcal{D}^{\textrm{r}}\). A separate held-out test set checks generalisation.
+</p>
+<p>For retraining-based deletion, a useful reported quantity is the forget-accuracy gap
+</p>
+<p style="text-align:center">
+\[
+\left|\mathrm{Acc}(\boldsymbol{\theta}^{\textrm{unl}};\mathcal{D}^{\textrm{f}})
+-\mathrm{Acc}(\boldsymbol{\theta}^{\star};\mathcal{D}^{\textrm{f}})\right|.
+\]
+</p><p>Suppose a deleted cat photograph resembles thousands of retained cat photographs. The retrained model may still classify it correctly. Forcing the unlearned model to misclassify it would increase this gap. This example explains the reference-dependent target; it does not turn a small accuracy gap into a complete unlearning test. Models can have the same aggregate accuracy and very different confidence, memorisation, or subgroup errors.
+</p>
+<h3>Membership inference needs a clearly specified experiment</h3>
+<p>A membership inference attack attempts to distinguish training members from nonmembers using accessible model information<span class="cite" data-ref="shokri2017"></span>. In an unlearning experiment, specify whether the attacker is trying to identify original members, currently retained members, or deleted records. Also specify whether it sees only predictions, the weights, or both old and new model versions. These are different experiments.
+</p>
+<p>An area under the receiver operating characteristic curve of 0.5 indicates chance ranking for that attack and dataset. It is not a theorem that every retrained baseline has AUC 0.5. Distribution mismatch, attack calibration, and the definition of positive examples can move the baseline. Compare against an actually retrained model under the same protocol, and report attack power, not just failure to detect a difference. The true-positive rate at low false-positive rates can reveal risks hidden by average metrics<span class="cite" data-ref="carlini2022"></span>.
+</p>
+<h3>Include the work done before and after deletion</h3>
+<p>Measure deletion latency, total computation, retained state, and any recovery stage. For a federated method, include transmitted bytes, communication rounds, and which clients must be online. For a sharded method, include extra training, checkpoints, and inference overhead. A method that is fast only because it stored a large training history has made a legitimate trade, but that storage belongs in the comparison.
+</p>
+<p>Finally, test stress cases: many deletions at once, a rare subgroup, repeated requests, and later fine-tuning. Relearning experiments should give the unlearned and retrained models the same new examples and compute budget. Goel et al. argue for adversarial evaluation rather than relying on a convenient fixed test<span class="cite" data-ref="goel2022"></span>. Strong empirical evidence narrows the failures we have checked; it does not establish a distributional statement for every possible observer.
+</p>
+<h2>Verification and privacy during deletion</h2>
+<h3>A final model does not reveal its full history</h3>
+<p>A low forget accuracy or a failed attack is an observation about one delivered model. A formal guarantee is a property of a specified algorithm over its possible runs. Thudi et al. show why matching model outputs or inspecting a training trace is insufficient in general to establish that particular records were absent: different training data and procedures can be consistent with the same observed result<span class="cite" data-ref="thudi2022"></span>.
+</p>
+<p>This does not make every audit impossible. It means an audit must state what evidence is available and what it establishes. A behavioural probe tests a behaviour; a verifiable execution mechanism can attest to a specified computation under its assumptions; a deletion guarantee relates that computation to a training reference. These layers should not be substituted for one another.
+</p>
+<p>Sommer et al. study probabilistic verification using deliberately introduced backdoor behaviour<span class="cite" data-ref="sommer2020"></span>. The idea is to test whether a trace associated with a user's contribution remains after deletion. Such a test has assumptions and detection errors. Failure to trigger the backdoor does not establish that every influence of the user's data has disappeared.
+</p>
+<h3>The change between model versions can leak information</h3>
+<figure id="fig-8">
+<a href="images/inversion-figure-1.png"><img src="images/inversion-figure-1.png" width="680" alt="Original unlearning inversion attack diagram: an attacker compares access to the trained and unlearned models to infer deleted data." loading="lazy"></a>
+<figcaption>The attacker observes a transition, not just the final model. Reproduced from Hu et al., <i>Learn What You Want to Unlearn</i>, original Fig. 1, PDF p. 2 <span class="cite" data-ref="hu2024"></span> (<a href="https://arxiv.org/pdf/2404.03233v1#page=2">source PDF</a>). The two model boxes correspond to \(\boldsymbol{\theta}^{\textrm{old}}\) and \(\boldsymbol{\theta}^{\textrm{unl}}\). The paper considers different access assumptions for recovering features and inferring labels; the diagram should not be read as claiming that every API user can reconstruct every deleted image.</figcaption>
+</figure>
+<p>The two-sided guarantee in Definition 2 concerns the final model's marginal distribution. It does not automatically bound what an attacker learns from the <i>pair</i> of original and unlearned models. The original model already depends on the deleted records, and the change can make their contribution easier to isolate.
+</p>
+<p>Chen et al. examine membership leakage from the before-and-after comparison<span class="cite" data-ref="chen2021"></span>. Hu et al. investigate recovery of features with white-box access to both models and inference of labels using their prediction changes under a different attack setup<span class="cite" data-ref="hu2024"></span>. The access distinction matters when deciding which threat a deployed system faces.
+</p>
+<p>There is also a resource-exhaustion risk. Marchant et al. construct poisoning attacks that make subsequent removal expensive, including triggering costly retraining in a certified-removal system<span class="cite" data-ref="marchant2022"></span>. Thus the evaluation should consider not only the average benign request, but also how the mechanism behaves on adversarially chosen data and deletion workloads.
+</p>
+<h2>Repeated requests and continued learning</h2>
+<h3>Track what accumulates</h3>
+<p>In a fixed dataset with no new arrivals, let \(\mathcal{D}_i^{\textrm{f}}\) be the records named by deletion request \(i\), and let \(\mathcal{D}_i^{\textrm{r}}\) be the records remaining after processing it. Start with \(\mathcal{D}_0^{\textrm{r}}=\mathcal{D}\) and require \(\mathcal{D}_i^{\textrm{f}}\subseteq\mathcal{D}_{i-1}^{\textrm{r}}\). Then
+</p>
+<p style="text-align:center">
+\[
+\mathcal{D}_i^{\textrm{r}}=\mathcal{D}_{i-1}^{\textrm{r}}\setminus\mathcal{D}_i^{\textrm{f}},\qquad
+\boldsymbol{\theta}_i^{\star}=\mathcal{A}(\mathcal{D}_i^{\textrm{r}}).
+\]
+</p><p>The subscript \(i\) identifies a request; training rounds still use \([t]\). This reference must be reconsidered when new data arrive or the training procedure changes. A guarantee proved for a fresh original model and one fixed request cannot simply be invoked again after every approximate edit. The input model now has a different history, and the next request may have been selected after observing earlier outputs.
+</p>
+<figure id="fig-9">
+<a href="images/certified-removal-figure-2.png"><img src="images/certified-removal-figure-2.png" width="620" alt="Guo et al. plot gradient residual bounds and the measured residual against the number of removed points." loading="lazy"></a>
+<figcaption>A concrete quantity that must be tracked across removals. Reproduced from Guo et al., original Fig. 2, PDF p. 7 <span class="cite" data-ref="guo2020"></span> (<a href="https://proceedings.mlr.press/v119/guo20c/guo20c.pdf#page=7">source PDF</a>). The vertical axis is the gradient residual norm on a logarithmic scale. The dashed curve is the measured residual; the coloured curves are different bounds used in the paper's analysis. Their gap motivates tighter accounting. This is a convex-model deletion experiment, not a plot of knowledge returning during later language-model training.</figcaption>
+</figure>
+<p>Some methods maintain a bound on accumulated residual error and retrain when a threshold is exceeded. More broadly, deletion capacity asks how many deletions can be supported at a stated utility and guarantee level<span class="cite" data-ref="sekhari2021"></span>. Sequential deletion is not an untouched problem: Descent-to-Delete studies long sequences of adversarial updates for convex objectives and distinguishes guarantees on all maintained state from guarantees on observable outputs<span class="cite" data-ref="neel2021"></span>. Those assumptions and distinctions should be retained when discussing extensions to deep or federated models.
+</p>
+<h3>Continued learning requires a precise comparison</h3>
+<p>There is an important qualification to the claim that &ldquo;later training makes the guarantee disappear.&rdquo; If two model distributions satisfy an exact or approximate comparison and the same randomised continuation is applied to both, using only permitted information, post-processing preserves that comparison<span class="cite" data-ref="dwork2014"></span>. Later computation by itself is not a counterexample to a valid guarantee.
+</p>
+<p>Problems arise when the continuation uses forgotten records, stale optimiser state, cached representations, old checkpoints, or request-dependent information that was not covered by the original guarantee. A behaviour removed by a heuristic method may also return because the method never established such a guarantee. Finally, the retain-only reference can itself learn similar knowledge from newly permitted data. That is different from recovering the influence of a deleted record.
+</p>
+<p>For continued federated learning, the practical research question is therefore specific: what state is retained, what information future clients supply, what the evolving reference is, and what an observer can see across time. A useful experiment evaluates both deletion quality and utility after each later training stage, against a reference with the same permitted information. These are the issues developed further in the <a href="../federated-unlearning/federated-unlearning.html" target=&ldquo;blank&rdquo;>federated unlearning note</a>.
+</p>
+<p>When reading a new unlearning paper, start with its reference procedure and request type. Then check the information the method requires, the precise strength of its guarantee, and the cost of maintaining it over time. The figures above illustrate different parts of this problem; none of their empirical comparisons should be read as a certificate for the entire system.
+</p>
+<h2>References</h2>
+<div class="refs"><ol>
+<li id="ref-cao2015">Y. Cao and J. Yang, &ldquo;Towards making systems forget with machine unlearning,&rdquo;
+    <i>IEEE Symposium on Security and Privacy</i>, 2015.
+    <a href="https://doi.org/10.1109/SP.2015.35">DOI</a></li>
+<li id="ref-bourtoule2021">L. Bourtoule, V. Chandrasekaran, C. A. Choquette-Choo, H. Jia, A. Travers, B. Zhang, D. Lie and N. Papernot,
+    &ldquo;Machine unlearning,&rdquo; <i>IEEE Symposium on Security and Privacy</i>, 2021.
+    <a href="https://arxiv.org/abs/1912.03817">arXiv:1912.03817</a></li>
+<li id="ref-ginart2019">A. Ginart, M. Y. Guan, G. Valiant and J. Zou, &ldquo;Making AI forget you: data deletion in machine learning,&rdquo;
+    <i>NeurIPS</i>, 2019.
+    <a href="https://arxiv.org/abs/1907.05012">arXiv:1907.05012</a></li>
+<li id="ref-guo2020">C. Guo, T. Goldstein, A. Hannun and L. van der Maaten, &ldquo;Certified data removal from machine learning models,&rdquo;
+    <i>ICML</i>, 2020.
+    <a href="https://arxiv.org/abs/1911.03030">arXiv:1911.03030</a></li>
+<li id="ref-sekhari2021">A. Sekhari, J. Acharya, G. Kamath and A. T. Suresh, &ldquo;Remember what you want to forget: algorithms for machine unlearning,&rdquo;
+    <i>NeurIPS</i>, 2021.
+    <a href="https://arxiv.org/abs/2103.03279">arXiv:2103.03279</a></li>
+<li id="ref-neel2021">S. Neel, A. Roth and S. Sharifi-Malvajerdi, &ldquo;Descent-to-delete: gradient-based methods for machine unlearning,&rdquo;
+    <i>ALT</i>, PMLR vol. 132, 2021.
+    <a href="https://proceedings.mlr.press/v132/neel21a.html">PMLR</a></li>
+<li id="ref-dwork2014">C. Dwork and A. Roth, &ldquo;The algorithmic foundations of differential privacy,&rdquo;
+    <i>Foundations and Trends in Theoretical Computer Science</i>, vol. 9, pp. 211&ndash;487, 2014.
+    <a href="https://doi.org/10.1561/0400000042">DOI</a></li>
+<li id="ref-warnecke2023">A. Warnecke, L. Pirch, C. Wressnegger and K. Rieck, &ldquo;Machine unlearning of features and labels,&rdquo;
+    <i>NDSS</i>, 2023.
+    <a href="https://arxiv.org/abs/2108.11577">arXiv:2108.11577</a></li>
+<li id="ref-kurmanji2023">M. Kurmanji, P. Triantafillou, J. Hayes and E. Triantafillou, &ldquo;Towards unbounded machine unlearning,&rdquo;
+    <i>NeurIPS</i>, 2023.
+    <a href="https://arxiv.org/abs/2302.09880">arXiv:2302.09880</a></li>
+<li id="ref-graves2021">L. Graves, V. Nagisetty and V. Ganesh, &ldquo;Amnesiac machine learning,&rdquo;
+    <i>AAAI</i>, vol. 35, pp. 11516&ndash;11524, 2021.
+    <a href="https://doi.org/10.1609/aaai.v35i13.17371">DOI</a></li>
+<li id="ref-golatkar2020">A. Golatkar, A. Achille and S. Soatto, &ldquo;Eternal sunshine of the spotless net: selective forgetting in deep networks,&rdquo;
+    <i>CVPR</i>, 2020.
+    <a href="https://doi.org/10.1109/CVPR42600.2020.00932">DOI</a></li>
+<li id="ref-liu2021">G. Liu, X. Ma, Y. Yang, C. Wang and J. Liu, &ldquo;FedEraser: enabling efficient client-level data removal from federated learning models,&rdquo;
+    <i>IEEE/ACM IWQoS</i>, 2021.
+    <a href="https://doi.org/10.1109/IWQOS52092.2021.9521274">DOI</a></li>
+<li id="ref-wu2022">C. Wu, S. Zhu and P. Mitra, &ldquo;Federated unlearning with knowledge distillation,&rdquo; 2022.
+    <a href="https://arxiv.org/abs/2201.09441">arXiv:2201.09441</a></li>
+<li id="ref-halimi2022">A. Halimi, S. Kadhe, A. Rawat and N. Baracaldo, &ldquo;Federated unlearning: how to efficiently erase a client in FL?&rdquo;
+    2022. <a href="https://arxiv.org/abs/2207.05521">arXiv:2207.05521</a></li>
+<li id="ref-chen2022">M. Chen, Z. Zhang, T. Wang, M. Backes, M. Humbert and Y. Zhang,
+    &ldquo;Graph unlearning,&rdquo; <i>ACM CCS</i>, 2022.
+    <a href="https://doi.org/10.1145/3548606.3559352">DOI</a></li>
+<li id="ref-yuan2023">W. Yuan, H. Yin, F. Wu, S. Zhang, T. He and H. Wang,
+    &ldquo;Federated unlearning for on-device recommendation,&rdquo; 2022.
+    <a href="https://arxiv.org/abs/2210.10958">arXiv:2210.10958</a></li>
+<li id="ref-maini2024">P. Maini, Z. Feng, A. Schwarzschild, Z. C. Lipton and J. Z. Kolter,
+    &ldquo;TOFU: a task of fictitious unlearning for LLMs,&rdquo; 2024.
+    <a href="https://arxiv.org/abs/2401.06121">arXiv:2401.06121</a></li>
+<li id="ref-zhang2024">R. Zhang, L. Lin, Y. Bai and S. Mei, &ldquo;Negative preference optimization: from catastrophic collapse to effective unlearning,&rdquo; 2024.
+    <a href="https://arxiv.org/abs/2404.05868">arXiv:2404.05868</a></li>
+<li id="ref-eldan2023">R. Eldan and M. Russinovich, &ldquo;Who&rsquo;s Harry Potter? Approximate unlearning in LLMs,&rdquo;
+    2023. <a href="https://arxiv.org/abs/2310.02238">arXiv:2310.02238</a></li>
+<li id="ref-li2024">N. Li, A. Pan, A. Gopal <i>et al.</i>, &ldquo;The WMDP benchmark: measuring and reducing malicious use with unlearning,&rdquo;
+    <i>ICML</i>, 2024. <a href="https://arxiv.org/abs/2403.03218">arXiv:2403.03218</a></li>
+<li id="ref-lynch2024">A. Lynch, P. Guo, A. Ewart, S. Casper and D. Hadfield-Menell,
+    &ldquo;Eight methods to evaluate robust unlearning in LLMs,&rdquo; 2024.
+    <a href="https://arxiv.org/abs/2402.16835">arXiv:2402.16835</a></li>
+<li id="ref-shokri2017">R. Shokri, M. Stronati, C. Song and V. Shmatikov, &ldquo;Membership inference attacks against machine learning models,&rdquo;
+    <i>IEEE Symposium on Security and Privacy</i>, 2017.
+    <a href="https://doi.org/10.1109/SP.2017.41">DOI</a></li>
+<li id="ref-carlini2022">N. Carlini, S. Chien, M. Nasr, S. Song, A. Terzis and F. Tram&egrave;r,
+    &ldquo;Membership inference attacks from first principles,&rdquo;
+    <i>IEEE Symposium on Security and Privacy</i>, 2022.
+    <a href="https://doi.org/10.1109/SP46214.2022.9833649">DOI</a></li>
+<li id="ref-goel2022">S. Goel, A. Prabhu, A. Sanyal, S.-N. Lim, P. Torr and P. Kumaraguru,
+    &ldquo;Towards adversarial evaluations for inexact machine unlearning,&rdquo; 2022.
+    <a href="https://arxiv.org/abs/2201.06640">arXiv:2201.06640</a></li>
+<li id="ref-thudi2022">A. Thudi, H. Jia, I. Shumailov and N. Papernot, &ldquo;On the necessity of auditable algorithmic definitions for machine unlearning,&rdquo;
+    <i>USENIX Security</i>, 2022.
+    <a href="https://arxiv.org/abs/2110.11891">arXiv:2110.11891</a></li>
+<li id="ref-sommer2020">D. M. Sommer, L. Song, S. Wagh and P. Mittal, &ldquo;Towards probabilistic verification of machine unlearning,&rdquo;
+    2020. <a href="https://arxiv.org/abs/2003.04247">arXiv:2003.04247</a></li>
+<li id="ref-hu2024">H. Hu, S. Wang, T. Dong and M. Xue, &ldquo;Learn what you want to unlearn: unlearning inversion attacks against machine unlearning,&rdquo;
+    <i>IEEE Symposium on Security and Privacy</i>, 2024.
+    <a href="https://arxiv.org/abs/2404.03233">arXiv:2404.03233</a></li>
+<li id="ref-chen2021">M. Chen, Z. Zhang, T. Wang, M. Backes, M. Humbert and Y. Zhang,
+    &ldquo;When machine unlearning jeopardizes privacy,&rdquo; <i>ACM CCS</i>, 2021.
+    <a href="https://doi.org/10.1145/3460120.3484756">DOI</a></li>
+<li id="ref-marchant2022">N. G. Marchant, B. I. P. Rubinstein and S. Alfeld, &ldquo;Hard to forget: poisoning attacks on certified machine unlearning,&rdquo;
+    <i>AAAI</i>, vol. 36, pp. 7691&ndash;7700, 2022.
+    <a href="https://doi.org/10.1609/aaai.v36i7.20736">DOI</a></li>
+</ol></div>
+</td>
+</tr>
+</table>
+</body>
+</html>

@@ -1,0 +1,404 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta name="generator" content="jemdoc, see http://jemdoc.jaboc.net/" />
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<link rel="stylesheet" href="../../jemdoc.css" type="text/css" />
+<link rel="stylesheet" href="../post.css" type="text/css" />
+<link rel="stylesheet" href="machine-unlearning.css" type="text/css" />
+<script src="../post.js" type="text/javascript"></script>
+<title>机器遗忘</title>
+<!-- Favicon -->
+<link rel="icon" href="../../favicon.png" type="image/png">
+<link rel="shortcut icon" href="../../favicon.png" type="image/png">
+<!-- MathJax -->
+<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML' async>
+</script>
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+	  TeX: { equationNumbers: { autoNumber: "AMS" } }
+});
+</script>
+<!-- End MathJax -->
+</head>
+<body>
+<table summary="Table for page layout." id="tlayout">
+<tr valign="top">
+<td id="layout-menu">
+<div class="menu-category">Zihao Ding</div>
+<div class="menu-item"><a href="../../index.html">Home</a></div>
+<div class="menu-item"><a href="../../publications.html">Publication</a></div>
+<div class="menu-item"><a href="../../awards.html">Awards</a></div>
+<div class="menu-item"><a href="../../blog.html" class="current">Blog</a></div>
+</td>
+<td id="layout-content">
+<div id="toptitle">
+<h1>机器遗忘</h1>
+</div>
+<div class="postmeta" data-topic="机器遗忘" data-date="2026 年 9 月 17 日" data-lang="zh" data-alt="machine-unlearning.html"></div>
+<p>假设一家医院曾经用患者数据参与训练一个诊断模型，现在要求撤回这批数据。把文件从数据库中删除，可以阻止它们再次进入训练，却不会自动改变已经训练好的模型。这些记录可能已经影响了模型的预测，模型也可能泄露其中的信息。机器遗忘（machine unlearning）研究的就是：怎样移除指定数据对训练结果的影响，同时尽量保留模型的正常用途。Cao 和 Yang 的早期工作对这一问题进行了系统研究<span class="cite" data-ref="cao2015"></span>。
+</p>
+<p>类似的需求还来自错误标签、退出训练的参与方，以及后来才发现的投毒样本。不过，这些任务的成功标准并不完全相同。一个方法能修复投毒造成的准确率下降，不代表它已经移除了投毒记录对模型的全部影响。讨论某个方法之前，必须先弄清楚它到底要删什么，以及怎样才算删掉了。
+</p>
+<p>最直接的办法是只用允许保留的数据重新训练。重训练本身就是一种有效的遗忘方法，也给其他方法提供了参照。研究的难点在于：能不能少做一些计算，又不在不知不觉中降低要求？下面先把这个参照写清楚，再讨论集中式算法、联邦学习、大语言模型、评测，以及连续删除请求。每节的配图都截取自所讨论的论文，图注给出原图编号、页码和来源。<a class="figref" data-fig="1"></a> 就是 Cao 和 Yang 提出的那种改写。
+</p>
+<figure id="fig-1">
+<a href="images/cao-yang-figure-1.png"><img src="images/cao-yang-figure-1.png" width="640" alt="Cao 和 Yang 原论文示意图：左侧模型直接依赖每一条训练样本，右侧把学习算法改写成少量求和项。" loading="lazy"></a>
+<figcaption>遗忘介入的是训练流程的哪一段。截取自 Cao 和 Yang 的 <i>Towards Making Systems Forget with Machine Unlearning</i>，原 Fig. 1，PDF 第 2 页<span class="cite" data-ref="cao2015"></span>（<a href="https://yinzhicao.org/unlearning/UnlearningOakland15.pdf#page=2">原论文 PDF</a>）。左侧模型直接依赖每一条训练样本，因此撤回一条样本就要重新训练。右侧先把学习算法改写成若干个对变换后样本的求和项，删除时只更新这些求和项。这种改写只适用于能写成该形式的算法，所以它是一类方法的构造，而不是通用解法。</figcaption>
+</figure>
+<h2>模型“忘掉了”，究竟是什么意思？</h2>
+<h3>先说清楚数据和训练过程</h3>
+<p>用 \(\mathcal{D}\) 表示原始训练集。一次请求指定遗忘集 \(\mathcal{D}^{\textrm{f}}\subseteq\mathcal{D}\)，剩下的是保留集 \(\mathcal{D}^{\textrm{r}}=\mathcal{D}\setminus\mathcal{D}^{\textrm{f}}\)。这里按记录身份区分样本：两条内容相同的记录，仍然可能是两个不同的训练样本。除非另有说明，下面假设保留集非空。
+</p>
+<p>用 \(\mathcal{A}\) 表示完整的训练过程，原模型的参数写作 \(\boldsymbol{\theta}^{\textrm{old}}=\mathcal{A}(\mathcal{D})\)。“完整”包括模型结构、数据预处理、优化器、停止条件，以及随机种子的采样方式。如果原模型用一种训练配置，而重训练基线换了另一种配置，那么比较中就混入了删除数据之外的变化。
+</p>
+<p>下面的符号会在后文反复使用。按照本站的规则，拉丁字母向量和矩阵用粗体，希腊字母向量也用粗体；时间步写在方括号中，实体编号放在下标，表示身份的缩写放在正体上标中。例如，\(\boldsymbol{\theta}_k[t]\) 表示客户端 \(k\) 在第 \(t\) 轮的参数，而 \(\boldsymbol{\theta}^{\textrm{unl}}\) 表示遗忘后的参数。
+</p>
+<div style="overflow-x:auto"><table class="notation-table">
+<thead><tr><th>符号</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td>\(\mathcal{D},\mathcal{D}^{\textrm{f}},\mathcal{D}^{\textrm{r}}\)</td><td>原始训练集、遗忘集、保留集；上标 f、r 分别是 forget、retain 的缩写。</td></tr>
+<tr><td>\(\mathcal{A},\mathcal{U}\)</td><td>训练算法、遗忘算法。</td></tr>
+<tr><td>\(\boldsymbol{\theta}^{\textrm{old}},\boldsymbol{\theta}^{\textrm{unl}},\boldsymbol{\theta}^{\star}\)</td><td>原模型、遗忘模型、重训练参照模型的参数。</td></tr>
+<tr><td>\(f(\mathbf{x};\boldsymbol{\theta})\)</td><td>参数为 \(\boldsymbol{\theta}\) 的模型对输入向量 \(\mathbf{x}\) 的预测；\(y\) 是对应标签。</td></tr>
+<tr><td>\(\mathcal{S};\epsilon,\delta\)</td><td>参数空间中的可测集合；非负的乘性预算和加性概率松弛，其中 \(0\leq\delta&lt;1\)。</td></tr>
+<tr><td>\(\mathcal{D}_k; k,N\)</td><td>客户端 \(k\) 的本地数据集；客户端编号和客户端总数。</td></tr>
+<tr><td>\(\boldsymbol{\theta}[t]; t,T\)</td><td>第 \(t\) 轮的全局参数；轮次编号和训练总轮数。</td></tr>
+<tr><td>\(\mathcal{Q}^{\textrm{f}},\mathcal{Q}^{\textrm{r}}\)</td><td>语言模型评测中的遗忘查询集和效用查询集。</td></tr>
+</tbody></table></div>
+<p>先考虑集中式场景，即遗忘算法能够访问原始数据及删除请求。遗忘结果和重训练参照分别为
+</p>
+<p style="text-align:center">
+\[
+\begin{aligned}
+\boldsymbol{\theta}^{\textrm{unl}}&amp;=\mathcal{U}(\boldsymbol{\theta}^{\textrm{old}},\mathcal{D},\mathcal{D}^{\textrm{f}}),\\
+\boldsymbol{\theta}^{\star}&amp;=\mathcal{A}(\mathcal{D}^{\textrm{r}}).
+\end{aligned}
+\]
+</p><p>这个接口表示算法可获得哪些信息，并不要求每种方法都读取全部记录。一些方法还要保存检查点、优化器状态或训练统计量。这些都属于额外状态，不能从存储开销中略去；如果保证需要覆盖这些状态，也必须在定义中明确。后面的联邦场景会进一步限制服务器能够访问的信息。
+</p>
+<h3>为什么比较的是分布，而不是两组权重？</h3>
+<p>即使用同一份数据训练两次，随机初始化、批次顺序等因素也可能让两次训练得到不同的权重。因此，\(\boldsymbol{\theta}^{\star}\) 通常是一个随机变量。遗忘所比较的是指定训练过程反复运行时产生的模型分布，而不是挑出某一次重训练的检查点，要求遗忘模型与它逐元素相等。如果训练算法是确定性的，分布就退化为只集中在一个输出上的特殊情况。
+</p>
+<p>这也解释了 <a class="figref" data-fig="2"></a> 中的两条路径：移除一条记录的训练影响，不一定要回到“当初学习这条记录之前”的那组权重。从保留数据重新训练，可以走到另一个同样合法的结果。
+</p>
+<figure id="fig-2">
+<a href="images/sisa-figure-1.png"><img src="images/sisa-figure-1.png" width="600" alt="SISA 原论文示意图：学习一个样本、回退到旧检查点，以及删除该样本后重新训练的不同路径。" loading="lazy"></a>
+<figcaption>训练历史与重训练参照不是同一条路径。截取自 Bourtoule 等人的 <i>Machine Unlearning</i>，原 Fig. 1，PDF 第 4 页<span class="cite" data-ref="bourtoule2021"></span>（<a href="https://arxiv.org/pdf/1912.03817v3#page=4">原论文 PDF</a>）。原图中的 \(D\) 对应本文的保留集，后来加入的那个点对应单样本遗忘集。下方两个模型是在相同保留数据上得到的不同训练结果。这张图用于说明问题，不应把它理解成对所有模型都成立的不可能性定理。</figcaption>
+</figure>
+<div class="defn"><span class="head">定义 1：精确遗忘，针对一次固定请求。</span>
+给定训练算法 \(\mathcal{A}\)，如果对每个允许的数据集和遗忘集，遗忘算法 \(\mathcal{U}\) 都满足
+\[
+\boldsymbol{\theta}^{\textrm{unl}}\stackrel{\textrm{d}}{=}\boldsymbol{\theta}^{\star},
+\]
+则称其实现精确遗忘。\(\stackrel{\textrm{d}}{=}\) 表示同分布：对于参数空间中的每个可测集合 \(\mathcal{S}\)，两个输出落入其中的概率都相同。这里固定数据与请求，概率来自算法内部的随机性。</div>
+<p>Ginart 等人和 Bourtoule 等人的工作采用了这种分布层面的思路<span class="cite" data-ref="ginart2019 bourtoule2021"></span>。完整重训练直接满足定义。更高效的精确方法则需要利用问题结构，例如更新足够统计量，或只重训练相互独立的受影响部分。这里的“精确”始终相对于指定的 \(\mathcal{A}\)；它不是要求所有训练方案都产生同一个模型。
+</p>
+<h3>近似保证究竟允许什么差异？</h3>
+<div class="defn"><span class="head">定义 2：双向 \((\epsilon,\delta)\) 近似遗忘。</span>
+对每个允许的固定数据集和请求，以及参数空间中的每个可测集合 \(\mathcal{S}\)，同时要求
+\[
+\begin{aligned}
+\Pr[\boldsymbol{\theta}^{\textrm{unl}}\in\mathcal{S}]&\leq e^{\epsilon}\Pr[\boldsymbol{\theta}^{\star}\in\mathcal{S}]+\delta,\\
+\Pr[\boldsymbol{\theta}^{\star}\in\mathcal{S}]&\leq e^{\epsilon}\Pr[\boldsymbol{\theta}^{\textrm{unl}}\in\mathcal{S}]+\delta.
+\end{aligned}
+\]
+其中 \(\epsilon\geq0\) 控制乘性差异，\(0\leq\delta&lt;1\) 是加性概率松弛。这里讨论一次独立于训练随机性而固定的请求，保证对象是输出的模型参数。</div>
+<p>可以把 \(\mathcal{S}\) 理解成观察者会判为“这是遗忘模型”的所有参数结果。两条不等式限制了任意这类可测判断规则能够看到的概率差异。预算越小，要求越强；当 \(\epsilon=\delta=0\) 时，就回到精确同分布。\(\delta\) 不是“可以不删除的数据比例”，上述定义也不是要求某一对模型在每个输入上都给出相同答案。
+</p>
+<p>认证删除和机器遗忘理论中经常出现这种比较，但不同论文允许的请求、覆盖的状态和所需假设并不一样<span class="cite" data-ref="guo2020 sekhari2021 neel2021"></span>。只报告遗忘模型与重训练模型的测试准确率接近，不能证明定义 2。假如攻击者还能看到旧模型、中间通信消息或检查点，那么它观察到的对象已经超出了最终参数，需要另外分析。
+</p>
+<p>差分隐私有助于理解这一界限的形式<span class="cite" data-ref="dwork2014"></span>。如果训练算法在“增加或删除一条记录”的相邻关系下满足差分隐私，那么对于一次固定的单记录删除，即使不修改模型，原输出也已经满足对应的分布比较。然而，删除一个客户端的全部数据往往涉及很多记录，需要群体层面的保证，预算一般会随删除规模恶化。因此，不能把记录级隐私保证直接当成免费的客户端级遗忘保证。这种模型输出保证本身也不负责删除硬盘上的原始数据副本。
+</p>
+<h3>删除粒度决定参照数据是什么</h3>
+<p>样本级请求指定若干记录，类别级请求指定某一标签的全部训练样本，客户端级请求指定某个参与方的本地记录。这些都可以通过选择 \(\mathcal{D}^{\textrm{f}}\) 来描述，但它们的规模、分布，以及与保留数据的相关性可能相差很大。
+</p>
+<p>特征删除和标签修正还需要再区分一步。一个人可能只撤回某个敏感字段，同时允许其他字段继续使用。此时删掉整行会丢失过多数据；合理的参照是对修改后的记录重新训练，而不一定是对简单的行子集重新训练。Warnecke 等人专门研究了特征与标签层面的遗忘<span class="cite" data-ref="warnecke2023"></span>。数据究竟怎样被修改，应该在比较方法之前写清楚。
+</p>
+<h2>集中式方法怎样减少重训练的工作量？</h2>
+<h3>SISA：在训练时限制每条记录的影响范围</h3>
+<p>SISA 是 Sharded、Isolated、Sliced、Aggregated 的缩写<span class="cite" data-ref="bourtoule2021"></span>。它首先改变原来的训练方式：把训练记录划分为互不重叠的分片，每个分片训练一个独立子模型，预测时再聚合这些子模型的输出。一个分片内部又分成多个切片，训练时逐步加入切片，并在加入新切片之前保存检查点。
+</p>
+<p>删除请求到来后，先找到记录所在的分片，再找到它首次参与训练的切片。从这条记录尚未进入训练的检查点恢复，只重跑受影响的后续训练过程。其他分片的模型可以直接保留。如果一批删除请求覆盖多个分片，就要分别修复这些分片，并从各自最早受影响的位置开始。
+</p>
+<figure id="fig-3">
+<a href="images/sisa-figure-2.png"><img src="images/sisa-figure-2.png" width="650" alt="SISA 原论文框架：数据分片、片内切片、独立训练的子模型，以及预测聚合。" loading="lazy"></a>
+<figcaption>红色记录只影响一个子模型。截取自 Bourtoule 等人，原 Fig. 2，PDF 第 6 页<span class="cite" data-ref="bourtoule2021"></span>（<a href="https://arxiv.org/pdf/1912.03817v3#page=6">原论文 PDF</a>）。原图中的 \(S\) 表示分片数，\(R\) 表示切片数；这些是论文保留的原始标记，不是本文定义中的可测集合 \(\mathcal{S}\)。分片省去其他模型的重训练，切片检查点进一步省去受影响模型的训练前缀。</figcaption>
+</figure>
+<p>例如，假设数据被分成十个训练成本相同的分片，而一条删除记录只位于其中一个分片。需要修复的只是这个子模型，切片还可能继续减少它的重算量。这只是帮助理解工作量的例子，并不意味着实际时间一定缩短十倍。并行程度、检查点读取、预测聚合，以及被删记录所在的位置，都会影响最终耗时。
+</p>
+<p>SISA 的精确性是相对于“在保留记录上运行相同的 SISA 训练过程”而言的。分片规则、随机性和检查点恢复方式都需要保持一致。它不是在声称结果等价于一张用全部保留数据训练的单体神经网络。如果各分片共用的数据预处理曾受到被删记录影响，也需要处理这部分依赖。相应的代价包括检查点存储、集成推理开销，以及每个子模型看到的数据更少所带来的效用损失。
+</p>
+<h3>Newton 更新：估计删除后最优点往哪里移动</h3>
+<p>另一类方法从原模型出发，估计去掉数据后最优点的变化。为了把这件事写清楚，用 \(\mathcal{B}\) 表示一个非空数据集，定义正则化训练目标
+</p>
+<p style="text-align:center">
+\[
+\mathcal{J}(\boldsymbol{\theta};\mathcal{B})=
+\frac{1}{|\mathcal{B}|}\sum_{(\mathbf{x},y)\in\mathcal{B}}c(\boldsymbol{\theta};\mathbf{x},y)
++\frac{\lambda}{2}\|\boldsymbol{\theta}\|_2^2.
+\]
+</p><p>其中，\(c\) 是单个样本的损失，\(\lambda&gt;0\) 控制二次正则项的强度，\(\|\cdot\|_2\) 是欧氏范数。把保留集上的目标简写为 \(\mathcal{J}^{\textrm{r}}(\boldsymbol{\theta})=\mathcal{J}(\boldsymbol{\theta};\mathcal{D}^{\textrm{r}})\)。下面的局部推导假设它二阶可微且强凸，并把 \(\boldsymbol{\theta}^{\textrm{old}}\) 看作已经充分优化的起点。在这个起点处，保留目标的梯度和 Hessian 矩阵分别为
+</p>
+<p style="text-align:center">
+\[
+\mathbf{g}^{\textrm{r}}=\nabla\mathcal{J}^{\textrm{r}}(\boldsymbol{\theta}^{\textrm{old}}),\qquad
+\mathbf{H}^{\textrm{r}}=\nabla^2\mathcal{J}^{\textrm{r}}(\boldsymbol{\theta}^{\textrm{old}}).
+\]
+</p><p>原模型在全部数据上接近最优，不代表它在保留数据上仍然最优。\(\mathbf{g}^{\textrm{r}}\) 描述后者还剩多少一阶变化趋势，\(\mathbf{H}^{\textrm{r}}\) 则描述附近的曲率。对保留目标的梯度做一阶近似，再令近似梯度为零，就得到一次 Newton 更新
+</p>
+<p style="text-align:center">
+\[
+\boldsymbol{\theta}^{\textrm{new}}=
+\boldsymbol{\theta}^{\textrm{old}}-(\mathbf{H}^{\textrm{r}})^{-1}\mathbf{g}^{\textrm{r}}.
+\]
+</p><p>这解释了影响估计类方法的优化思路，但不是 Guo 等人认证算法的逐式复述。即使目标是凸的，一步 Newton 更新通常也不会恰好到达保留集最优点；更新后的梯度残差、近似误差，以及原训练过程的误差，都需要控制。对于大型神经网络，强凸假设通常不成立，完整 Hessian 也难以存储和求逆，因此不能仅凭这个式子就宣称获得了遗忘保证。
+</p>
+<p>Guo 等人把删除更新、随机扰动与梯度残差上界结合起来，在论文限定的模型条件下给出认证删除保证<span class="cite" data-ref="guo2020"></span>。保证同时依赖原模型怎样训练、删除更新怎样计算，以及剩余误差怎样界定。给任意修改后的模型随便加一点噪声，并不能得到同样的结论。
+</p>
+<figure id="fig-4">
+<a href="images/certified-removal-figure-1.png"><img src="images/certified-removal-figure-1.png" alt="认证删除原论文的三组曲线：准确率随扰动、遗忘预算和可支持删除数量的变化。" loading="lazy"></a>
+<figcaption>删除保证需要付出怎样的准确率代价？截取自 Guo 等人，原 Fig. 1，PDF 第 6 页<span class="cite" data-ref="guo2020"></span>（<a href="https://proceedings.mlr.press/v119/guo20c/guo20c.pdf#page=6">原论文 PDF</a>）。实验是 MNIST 上的二分类逻辑回归，不能直接代表深度网络。原图中 \(\lambda\) 表示正则化强度，\(\sigma\) 表示扰动的标准差。右图固定 \(\epsilon=1\)，展示支持更多删除与保持准确率之间的取舍。本文所有配图都可点击查看完整 PNG。</figcaption>
+</figure>
+<h3>梯度上升与 SCRUB：改变目标行为，同时维护正常用途</h3>
+<p>在深度模型上，很多实用方法通过损失函数调整行为，但并不提供分布层面的认证。把 \(c\) 在遗忘集上的平均值记为 \(\mathcal{J}^{\textrm{f}}\)，这里不包含正则项。最直接的做法是梯度上升：
+</p>
+<p style="text-align:center">
+\[
+\boldsymbol{\theta}[t+1]=\boldsymbol{\theta}[t]+\eta\nabla\mathcal{J}^{\textrm{f}}(\boldsymbol{\theta}[t]),\qquad \eta&gt;0.
+\]
+</p><p>这里的 \(t\) 是优化步编号，\(\eta\) 是步长。普通训练通过降低损失把样本学好；梯度上升则提高遗忘样本的损失，使它们变得难以预测。问题是，同一组参数也服务于保留样本。直接上升可能损害正常能力，还可能把遗忘样本的损失推得异常高，让攻击者更容易把它们识别出来。
+</p>
+<p>SCRUB 使用教师—学生训练来处理这一取舍<span class="cite" data-ref="kurmanji2023"></span>。教师是冻结的原模型，学生从原模型的权重出发。对保留样本，学生既要接近教师的输出，也要正确预测标签；对遗忘样本，学生则被推动着偏离教师。实际算法交替执行这两类更新，并追加保留集上的恢复训练。面向隐私的 SCRUB+R 还会选择较早的检查点，避免遗忘误差过大。这些是训练和选择模型的具体规则，不能直接当成定义 2 的证明。
+</p>
+<p>还有一些方法保存并反向撤销部分训练更新，或者利用曲率信息修改权重<span class="cite" data-ref="graves2021 golatkar2020"></span>。读这类论文时，需要问清楚：算法真正消除了哪些依赖，又近似处理了哪些依赖？减去某次旧更新，并不会自动撤销此后所有基于被改变模型计算出来的更新。
+</p>
+<h2>联邦学习与结构化数据：数据在哪里，决定方法能做什么</h2>
+<h3>先定义联邦场景中的重训练参照</h3>
+<p>联邦学习中，\(N\) 个客户端协作训练模型 \(f(\cdot;\boldsymbol{\theta})\)，各自保留本地数据集 \(\mathcal{D}_k\)。令 \(\mathcal{D}=\bigcup_{k=1}^{N}\mathcal{D}_k\) 表示所有本地数据集的并集，并通过记录身份区分不同客户端持有的副本。用 \(k^{\textrm{f}}\) 标识退出的客户端。若它要删除其全部贡献，则 \(\mathcal{D}^{\textrm{f}}=\mathcal{D}_{k^{\textrm{f}}}\)。参照过程是在这些记录和该客户端训练贡献均不存在的条件下，重新运行约定的联邦训练协议。
+</p>
+<p>用一个每轮所有客户端都参加的简单例子说明依赖关系。令 \(\boldsymbol{\Delta}_k[t]\) 表示客户端 \(k\) 从全局参数 \(\boldsymbol{\theta}[t]\) 出发进行本地训练后得到的参数变化量，令 \(\omega_k=|\mathcal{D}_k|/|\mathcal{D}|\) 表示它的聚合权重。服务器更新为
+</p>
+<p style="text-align:center">
+\[
+\boldsymbol{\theta}[t+1]=\boldsymbol{\theta}[t]+\sum_{k=1}^{N}\omega_k\boldsymbol{\Delta}_k[t].
+\]
+</p><p>这里 \(k\) 是客户端编号，\(t=0,\ldots,T-1\) 是训练轮次。去掉客户端 \(k^{\textrm{f}}\)，不仅改变聚合权重，还会改变其余客户端以后各轮收到的模型。因此，对剩余客户端 \(k\) 而言，保存下来的 \(\boldsymbol{\Delta}_k[t]\) 一般并不是它在“客户端 \(k^{\textrm{f}}\) 从未参与时”会产生的更新。这就是直接减去目标客户端历史更新通常无法实现精确遗忘的原因。
+</p>
+<h3>FedEraser 复用了什么，又重新计算了什么？</h3>
+<p>FedEraser 在训练时保存客户端的历史更新，在删除时让剩余客户端参与校准，再逐步重建模型<span class="cite" data-ref="liu2021"></span>。直观地说，历史更新提供更新幅度方面的信息，新的本地计算则提供适合重建轨迹的更新方向。它用服务器存储和额外客户端参与，换取相对于完整重训练的计算节省。
+</p>
+<figure id="fig-5">
+<a href="images/federaser-figure-1.png"><img src="images/federaser-figure-1.png" alt="FedEraser 原论文实验：测试集和被删客户端数据上的准确率，与历史更新累加、完整联邦重训练和原模型比较。" loading="lazy"></a>
+<figcaption>两幅图都应比较红色 FedEraser 与绿色 FedRetrain。截取自 Liu 等人的 <i>FedEraser</i>，原 Fig. 1，arXiv 版本 PDF 第 5 页<span class="cite" data-ref="liu2021"></span>（<a href="https://arxiv.org/pdf/2012.13891v3#page=5">原论文 PDF</a>）。“Target Data” 是退出客户端的数据。部分数据集上的重训练准确率仍然很高，因为其他客户端的数据也能帮助模型预测这些样本。柱子接近是这些实验中的行为证据，不是模型分布同一性的证明。</figcaption>
+</figure>
+<p>方法能否部署，还取决于协议条件：剩余客户端是否在线？服务器保存的是每个客户端的独立更新，还是安全聚合之后的总和？退出的客户端是否愿意再配合一次？这些条件不是次要实现细节，而是决定算法有没有所需输入的前提。
+</p>
+<p>例如，Wu 等人先减去历史贡献，再借助无标签辅助数据做知识蒸馏来恢复性能，因而不要求获得客户端原始数据<span class="cite" data-ref="wu2022"></span>。Halimi 等人的方法先由退出客户端进行本地遗忘，然后还需要服务器与剩余客户端执行恢复轮次<span class="cite" data-ref="halimi2022"></span>。把后一方法描述成“只靠退出客户端自己的计算完成”是不准确的。类似地，不能因为联邦方法也在修改权重，就直接套用集中式算法的理论保证。
+</p>
+<h3>图和推荐系统还改变了“一个样本”的含义</h3>
+<p>在图模型中，删除一个节点会改变边和邻域，进而改变其他节点通过消息传递获得的信息。因此，请求到底删除节点本身、关联边、节点特征，还是某个训练标签，需要分别说明。GraphEraser 把分区与局部重训练的思路用于这一结构化场景<span class="cite" data-ref="chen2022"></span>。
+</p>
+<p>推荐系统也存在用户与物品之间的关联依赖。删除一次交互，与删除某个用户及其全部交互，是不同的任务。端侧联邦推荐又把这类结构依赖与本地数据不可直接访问的问题叠加起来<span class="cite" data-ref="yuan2023"></span>。因此，一个在独立记录上有效的删除方法，不能只换一个数据集名称就自动适用于这些场景。
+</p>
+<h2>大语言模型：删除训练记录与移除知识不是同一件事</h2>
+<h3>定义仍然成立，难的是构造参照</h3>
+<p>对大语言模型，遗忘目标可能是一批明确的微调记录、某个人的隐私信息、一篇文档，或者某类能力。它们不应混为一谈。如果目标训练记录是已知的，前面的重训练定义仍然适用。但如果目标是一个广泛概念，相关证据可能散布在许多文档、改写和语言中，连 \(\mathcal{D}^{\textrm{f}}\) 该包含什么都需要先解决。
+</p>
+<p>这里要区分“数学上有参照”和“实验中能承担参照的计算成本”。重新训练一个大型基础模型可能不现实，但这不意味着 \(\mathcal{A}(\mathcal{D}^{\textrm{r}})\) 在概念上不存在。对于受控的微调任务，研究者仍然可以构造只使用保留数据的模型，从而进行直接比较。
+</p>
+<p>TOFU 就采用了这样的设计<span class="cite" data-ref="maini2024"></span>。它通过微调让模型学习虚构作者的资料，再指定其中一部分作者作为遗忘目标。参照模型从同一个起始检查点出发，只在保留作者的数据上微调。这样能够控制新增微调信息的来源；它并不是在宣称研究者知道基础模型预训练阶段学过的全部事实。
+</p>
+<figure id="fig-6">
+<a href="images/tofu-figure-1.png"><img src="images/tofu-figure-1.png" width="720" alt="TOFU 原论文示意图：预训练模型学习虚构作者数据，再遗忘指定子集。" loading="lazy"></a>
+<figcaption>先控制知识的引入过程，才更容易建立可靠参照。截取自 Maini 等人的 <i>TOFU</i>，原 Fig. 1，PDF 第 1 页<span class="cite" data-ref="maini2024"></span>（<a href="https://arxiv.org/pdf/2401.06121v1#page=1">原论文 PDF</a>）。图中依次是起始模型、在 TOFU 上微调后的模型和遗忘模型。评测还使用只在保留集上微调的参照模型，但原图没有画出这条支路。这是一张任务示意图，不是某个算法已经成功的实验证据。</figcaption>
+</figure>
+<h3>优化目标究竟在压低什么？</h3>
+<p>令 \(q\) 表示提示词，\(y\) 表示目标回答序列，\(p_{\boldsymbol{\theta}}(y\mid q)\) 表示模型在给定提示词时生成这一回答的条件概率。这里沿用 \(y\) 表示预测目标，只是它从分类标签变成了文本序列。回答概率由序列中各 token 的条件概率组成，对应的负对数似然损失为
+</p>
+<p style="text-align:center">
+\[
+c(\boldsymbol{\theta};q,y)=-\log p_{\boldsymbol{\theta}}(y\mid q).
+\]
+</p><p>这是前面单样本损失 \(c\) 在语言模型中的具体形式。对遗忘样本做梯度上升，会降低目标回答的概率。然而，如果没有保留目标或其他约束，模型可能不只是少回答某个问题，还会失去与该目标无关的正常生成能力。
+</p>
+<p>负偏好优化（negative preference optimisation）以原模型为参照，并随着不希望出现的回答变得不太可能，调整对该回答的更新力度<span class="cite" data-ref="zhang2024"></span>。它试图改善直接梯度上升带来的遗忘与效用取舍，但其目标函数本身不是“知识已经被移除”的普遍证明。还有方法构造替代训练目标，例如 Harry Potter 遗忘研究；也有方法改变中间表示，例如 WMDP 工作中评测的表示误导方法<span class="cite" data-ref="eldan2023 li2024"></span>。评价它们之前，仍然要先确定任务是在删除记录、限制复述，还是削弱某种能力。
+</p>
+<h3>查询集评测有用，但不能代替完整定义</h3>
+<p>用 \(\mathcal{Q}^{\textrm{f}}\) 表示试图诱发目标内容的查询集，用 \(\mathcal{Q}^{\textrm{r}}\) 表示测试正常能力的查询集。它们是评测问题，不一定是训练样本。如果能构造重训练模型，就在两组查询上分别比较遗忘模型与它的行为。如果没有可运行的参照，就需要明确写出所选的行为目标：拒绝回答、减少逐字复述、降低目标答案概率，或降低某项能力基准的得分。
+</p>
+<p>这些目标回答的是不同的问题。模型拒绝原来的问法，不代表改写之后仍然不会回答。某个事实还可能从允许保留的信息中推断出来；正确删除相关训练记录，也未必能阻止这种推断。因此，稳健评测应改变提示词和访问条件，并检验后续微调能否恢复目标行为<span class="cite" data-ref="lynch2024"></span>。相对于合适基线而言，恢复得异常快值得警惕，但仅凭这一点，不能证明原来的具体信息一直原封不动地藏在权重中。
+</p>
+<h2>怎样判断一个遗忘方法是否有效？</h2>
+<h3>遗忘程度、正常效用与成本需要分开看</h3>
+<p>一个有用的实验比较通常包括原模型、不做处理、只在保留集上微调、完整重训练，以及待评测的方法。它们应处理同一删除请求，并说明超参数是怎样选出的。训练含有随机性时，要重复运行并报告波动。不能只挑一个有利的重训练结果作参照，却要求其他方法在多个随机种子上取平均。
+</p>
+<figure id="fig-7">
+<a href="images/scrub-figure-1.png"><img src="images/scrub-figure-1.png" alt="SCRUB 原论文雷达图：在三类删除设置下同时比较遗忘误差、保留准确率、测试准确率和运行时间加速。" loading="lazy"></a>
+<figcaption>一个方法需要从多个维度评价。截取自 Kurmanji 等人的 <i>Towards Unbounded Machine Unlearning</i>，原 Fig. 1，PDF 第 5 页<span class="cite" data-ref="kurmanji2023"></span>（<a href="https://arxiv.org/pdf/2302.09880v3#page=5">原论文 PDF</a>）。这组图针对论文中的 removing-bias 应用，因此希望遗忘误差较高；这一方向不能直接套到所有隐私删除任务。图中的 “Scale-up” 是相对运行时间指标，绘图时乘了五，不是准确率。小图例可点击 PNG 放大查看。</figcaption>
+</figure>
+<p>对分类数据集 \(\mathcal{B}\)，准确率定义为
+</p>
+<p style="text-align:center">
+\[
+\mathrm{Acc}(\boldsymbol{\theta};\mathcal{B})=
+\frac{1}{|\mathcal{B}|}\sum_{(\mathbf{x},y)\in\mathcal{B}}
+\mathbf{1}\{f(\mathbf{x};\boldsymbol{\theta})=y\}.
+\]
+</p><p>这里 \(f\) 返回预测类别，指示量 \(\mathbf{1}\{\cdot\}\) 在括号内命题成立时取一，否则取零。遗忘准确率是在 \(\mathcal{D}^{\textrm{f}}\) 上计算它，保留准确率是在 \(\mathcal{D}^{\textrm{r}}\) 上计算它；另外还需要独立测试集检查泛化能力。
+</p>
+<p>如果目标是逼近重训练，那么可以报告遗忘准确率与参照之间的差距：
+</p>
+<p style="text-align:center">
+\[
+\left|\mathrm{Acc}(\boldsymbol{\theta}^{\textrm{unl}};\mathcal{D}^{\textrm{f}})
+-\mathrm{Acc}(\boldsymbol{\theta}^{\star};\mathcal{D}^{\textrm{f}})\right|.
+\]
+</p><p>举一个简单例子：删除一张猫的照片，而保留集中还有大量相似的猫图。重训练模型仍然可能正确识别这张照片。如果刻意让遗忘模型把它分错，上面的差距反而会变大。这说明目标应该由参照决定，而不是一律把遗忘准确率降到零。但准确率差距小也远远不够：两个模型的总体准确率可以相同，置信度、记忆程度和少数群体上的错误却可能不同。
+</p>
+<h3>成员推断必须说明攻击者在区分什么</h3>
+<p>成员推断攻击利用模型可见的信息，尝试区分训练成员与非成员<span class="cite" data-ref="shokri2017"></span>。在遗忘实验中，需要进一步说明：攻击者要识别的是原始训练成员、当前仍保留的成员，还是曾被删除的记录？它只能查看预测，还是能够查看权重，或者同时拿到删除前后的模型？这些是不同的攻击实验。
+</p>
+<p>接收者操作特征曲线下面积，即 AUC，等于 0.5 表示该攻击在该数据上的排序能力相当于随机猜测。但不能因此规定所有重训练模型的 AUC 都一定是 0.5。正负样本定义、分布不匹配和攻击校准方式都可能改变基线。应当实际训练参照模型，在相同协议下评测，并报告攻击是否有足够的检测能力。低假阳性率下的真阳性率，还能揭示平均指标掩盖的风险<span class="cite" data-ref="carlini2022"></span>。
+</p>
+<h3>把删除前后的额外工作也算进去</h3>
+<p>成本至少包括删除延迟、总计算量、需要保留的状态，以及遗忘后的恢复阶段。联邦方法还应报告通信字节数、轮数和必须在线的客户端。分片方法还应说明额外训练、检查点和集成推理的成本。保存大量训练历史来换取快速删除，是一种可以讨论的取舍，但这些存储不能在对比中消失。
+</p>
+<p>最后要检查更困难的请求：大批量删除、少数群体、连续请求，以及后续微调。比较重新学习速度时，应给遗忘模型和重训练模型相同的新样本与计算预算。Goel 等人强调对抗式评测，而不是只运行一个容易通过的固定测试<span class="cite" data-ref="goel2022"></span>。充分的实验可以排查更多失败情况，但仍然不能代替面向所有观察者的分布保证。
+</p>
+<h2>验证与隐私：删除过程本身也可能泄露信息</h2>
+<h3>从最终模型看不出完整训练历史</h3>
+<p>遗忘准确率低、某个攻击失败，都是对交付模型的观测。形式化保证则是指定算法在所有可能运行结果上的性质。Thudi 等人说明了为什么仅比较模型结果，甚至查看某种训练轨迹，也一般不足以证明某条记录没有被使用：不同数据和训练过程可能与同一个观察结果相容<span class="cite" data-ref="thudi2022"></span>。
+</p>
+<p>这不意味着所有审计都没有意义，而是审计必须说明自己拥有什么证据，以及这些证据能支持什么结论。行为探针检验某种行为；可验证执行机制在其假设下证明执行了某个计算；遗忘保证则把这个计算与重训练参照联系起来。这几个层次不能互相替代。
+</p>
+<p>Sommer 等人研究了利用预先引入的后门行为进行概率性验证的方法<span class="cite" data-ref="sommer2020"></span>。基本思路是：先让用户贡献与一种可测试的模型行为相关联，再检查删除后该行为是否仍然存在。这样的测试有适用假设，也有检测错误。后门不再触发，并不等于用户数据的所有影响都已经消失。
+</p>
+<h3>删除前后两个版本的差异可能暴露目标数据</h3>
+<figure id="fig-8">
+<a href="images/inversion-figure-1.png"><img src="images/inversion-figure-1.png" width="680" alt="遗忘反演攻击原论文示意图：攻击者同时访问原模型和遗忘模型，利用两者变化推断被删数据。" loading="lazy"></a>
+<figcaption>攻击者可以观察模型的变化，而不只是最终模型。截取自 Hu 等人的 <i>Learn What You Want to Unlearn</i>，原 Fig. 1，PDF 第 2 页<span class="cite" data-ref="hu2024"></span>（<a href="https://arxiv.org/pdf/2404.03233v1#page=2">原论文 PDF</a>）。两个模型框对应 \(\boldsymbol{\theta}^{\textrm{old}}\) 和 \(\boldsymbol{\theta}^{\textrm{unl}}\)。论文对特征恢复与标签推断采用不同访问假设，不能把这张概念图理解成任何 API 用户都能重建任意被删图像。</figcaption>
+</figure>
+<p>定义 2 约束的是最终模型的边缘分布，并没有自动约束攻击者从“原模型、遗忘模型”这一对对象中能够学到什么。原模型本来就依赖被删记录，删除前后的变化还可能帮助攻击者进一步分离这些记录的贡献。
+</p>
+<p>Chen 等人研究了前后版本比较带来的成员身份泄露<span class="cite" data-ref="chen2021"></span>。Hu 等人则在能够白盒访问两个模型的条件下研究特征恢复，并在另一种攻击设置下利用预测变化推断标签<span class="cite" data-ref="hu2024"></span>。讨论实际系统是否面临这些风险时，必须保留这些访问条件，不能把不同威胁模型混在一起。
+</p>
+<p>另一类风险来自资源消耗。Marchant 等人构造投毒攻击，使后续删除变得昂贵，包括让认证删除机制触发代价较高的重训练<span class="cite" data-ref="marchant2022"></span>。因此，系统评测既要考虑平均情况下的正常请求，也要考虑攻击者选择的数据和删除工作负载。
+</p>
+<h2>连续请求与后续训练：保证要跟踪到什么时候？</h2>
+<h3>先明确哪些误差和状态会累积</h3>
+<p>在没有新增数据的固定数据集中，用 \(\mathcal{D}_i^{\textrm{f}}\) 表示第 \(i\) 个请求指定的删除记录，用 \(\mathcal{D}_i^{\textrm{r}}\) 表示处理该请求后的保留记录。初始时 \(\mathcal{D}_0^{\textrm{r}}=\mathcal{D}\)，并要求 \(\mathcal{D}_i^{\textrm{f}}\subseteq\mathcal{D}_{i-1}^{\textrm{r}}\)。于是
+</p>
+<p style="text-align:center">
+\[
+\mathcal{D}_i^{\textrm{r}}=\mathcal{D}_{i-1}^{\textrm{r}}\setminus\mathcal{D}_i^{\textrm{f}},\qquad
+\boldsymbol{\theta}_i^{\star}=\mathcal{A}(\mathcal{D}_i^{\textrm{r}}).
+\]
+</p><p>下标 \(i\) 标识请求，训练轮次仍然放在 \([t]\) 中。如果系统还会加入新数据或改变训练流程，就需要重新说明随时间变化的参照。一个只对“原模型加一次固定请求”成立的保证，不能在每次近似修改之后不加检查地继续套用：输入模型的历史已经变化，后续请求也可能是观察前面输出后才选择的。
+</p>
+<figure id="fig-9">
+<a href="images/certified-removal-figure-2.png"><img src="images/certified-removal-figure-2.png" width="620" alt="认证删除原论文曲线：随着删除数量增加，梯度残差的实测值与不同理论上界发生变化。" loading="lazy"></a>
+<figcaption>连续删除需要跟踪的一个具体量。截取自 Guo 等人，原 Fig. 2，PDF 第 7 页<span class="cite" data-ref="guo2020"></span>（<a href="https://proceedings.mlr.press/v119/guo20c/guo20c.pdf#page=7">原论文 PDF</a>）。纵轴是对数尺度的梯度残差范数，虚线为实测残差，彩色曲线为论文分析中的不同上界。上界与实测值的差距说明误差核算还有改进空间。这是凸模型中的删除实验，不是大语言模型在后续训练中“知识回流”的曲线。</figcaption>
+</figure>
+<p>一些方法维护累积残差的上界，超过阈值后回退到重训练。更一般地，删除容量研究的是：在约定的效用和保证水平下，一个模型能够支持多少删除<span class="cite" data-ref="sekhari2021"></span>。连续删除也并非没有理论工作。Descent-to-Delete 已经针对凸目标研究较长的对抗性更新序列，并区分“全部内部状态”与“可观察输出”的保证<span class="cite" data-ref="neel2021"></span>。把这些结论扩展到深度或联邦模型时，需要保留原来的假设和保证对象。
+</p>
+<h3>后续学习不一定让已有保证失效</h3>
+<p>“模型继续训练，遗忘保证就会消失”这句话过于笼统。如果两个模型分布已经满足精确或近似比较，而之后对两者施加相同的随机化处理，并且只使用允许的信息，那么后处理性质会保留这种比较<span class="cite" data-ref="dwork2014"></span>。单纯增加后续计算，并不能反驳一个本来有效的保证。
+</p>
+<p>真正需要检查的是：后续过程是否又接触了被删记录，是否使用了旧优化器状态、缓存表示或旧检查点，以及是否引入了原保证未覆盖、依赖删除请求的信息。对于没有形式化保证的启发式方法，被压低的行为也可能在后续训练中重新出现。还有一种不同情况：只用允许保留或新增的数据，重训练参照本身也重新学会了相似知识。这与恢复某条被删记录的影响不能直接画等号。
+</p>
+<p>因此，在持续联邦学习中，一个可研究的问题应明确说明：系统保留哪些状态，后续客户端提供哪些信息，参照过程怎样随数据变化，以及观察者能看到哪些历史版本。实验则应在后续各个训练阶段同时跟踪遗忘效果和正常效用，并与获得相同允许信息的参照比较。这些问题会在<a href="../federated-unlearning/federated-unlearning-zh.html" target=&ldquo;blank&rdquo;>联邦遗忘笔记</a>中进一步展开。
+</p>
+<p>阅读一篇新的遗忘论文时，可以先找到它的重训练参照和请求类型，再检查方法需要的信息、保证的准确范围，以及长期维护这项保证的成本。上面的原论文图展示了问题的不同侧面；其中任何一组实验结果，都不应被扩大解释为整个系统已经获得了完整的遗忘认证。
+</p>
+<h2>参考文献</h2>
+<div class="refs"><ol>
+<li id="ref-cao2015">Y. Cao and J. Yang, &ldquo;Towards making systems forget with machine unlearning,&rdquo;
+    <i>IEEE Symposium on Security and Privacy</i>, 2015.
+    <a href="https://doi.org/10.1109/SP.2015.35">DOI</a></li>
+<li id="ref-bourtoule2021">L. Bourtoule, V. Chandrasekaran, C. A. Choquette-Choo, H. Jia, A. Travers, B. Zhang, D. Lie and N. Papernot,
+    &ldquo;Machine unlearning,&rdquo; <i>IEEE Symposium on Security and Privacy</i>, 2021.
+    <a href="https://arxiv.org/abs/1912.03817">arXiv:1912.03817</a></li>
+<li id="ref-ginart2019">A. Ginart, M. Y. Guan, G. Valiant and J. Zou, &ldquo;Making AI forget you: data deletion in machine learning,&rdquo;
+    <i>NeurIPS</i>, 2019.
+    <a href="https://arxiv.org/abs/1907.05012">arXiv:1907.05012</a></li>
+<li id="ref-guo2020">C. Guo, T. Goldstein, A. Hannun and L. van der Maaten, &ldquo;Certified data removal from machine learning models,&rdquo;
+    <i>ICML</i>, 2020.
+    <a href="https://arxiv.org/abs/1911.03030">arXiv:1911.03030</a></li>
+<li id="ref-sekhari2021">A. Sekhari, J. Acharya, G. Kamath and A. T. Suresh, &ldquo;Remember what you want to forget: algorithms for machine unlearning,&rdquo;
+    <i>NeurIPS</i>, 2021.
+    <a href="https://arxiv.org/abs/2103.03279">arXiv:2103.03279</a></li>
+<li id="ref-neel2021">S. Neel, A. Roth and S. Sharifi-Malvajerdi, &ldquo;Descent-to-delete: gradient-based methods for machine unlearning,&rdquo;
+    <i>ALT</i>, PMLR vol. 132, 2021.
+    <a href="https://proceedings.mlr.press/v132/neel21a.html">PMLR</a></li>
+<li id="ref-dwork2014">C. Dwork and A. Roth, &ldquo;The algorithmic foundations of differential privacy,&rdquo;
+    <i>Foundations and Trends in Theoretical Computer Science</i>, vol. 9, pp. 211&ndash;487, 2014.
+    <a href="https://doi.org/10.1561/0400000042">DOI</a></li>
+<li id="ref-warnecke2023">A. Warnecke, L. Pirch, C. Wressnegger and K. Rieck, &ldquo;Machine unlearning of features and labels,&rdquo;
+    <i>NDSS</i>, 2023.
+    <a href="https://arxiv.org/abs/2108.11577">arXiv:2108.11577</a></li>
+<li id="ref-kurmanji2023">M. Kurmanji, P. Triantafillou, J. Hayes and E. Triantafillou, &ldquo;Towards unbounded machine unlearning,&rdquo;
+    <i>NeurIPS</i>, 2023.
+    <a href="https://arxiv.org/abs/2302.09880">arXiv:2302.09880</a></li>
+<li id="ref-graves2021">L. Graves, V. Nagisetty and V. Ganesh, &ldquo;Amnesiac machine learning,&rdquo;
+    <i>AAAI</i>, vol. 35, pp. 11516&ndash;11524, 2021.
+    <a href="https://doi.org/10.1609/aaai.v35i13.17371">DOI</a></li>
+<li id="ref-golatkar2020">A. Golatkar, A. Achille and S. Soatto, &ldquo;Eternal sunshine of the spotless net: selective forgetting in deep networks,&rdquo;
+    <i>CVPR</i>, 2020.
+    <a href="https://doi.org/10.1109/CVPR42600.2020.00932">DOI</a></li>
+<li id="ref-liu2021">G. Liu, X. Ma, Y. Yang, C. Wang and J. Liu, &ldquo;FedEraser: enabling efficient client-level data removal from federated learning models,&rdquo;
+    <i>IEEE/ACM IWQoS</i>, 2021.
+    <a href="https://doi.org/10.1109/IWQOS52092.2021.9521274">DOI</a></li>
+<li id="ref-wu2022">C. Wu, S. Zhu and P. Mitra, &ldquo;Federated unlearning with knowledge distillation,&rdquo; 2022.
+    <a href="https://arxiv.org/abs/2201.09441">arXiv:2201.09441</a></li>
+<li id="ref-halimi2022">A. Halimi, S. Kadhe, A. Rawat and N. Baracaldo, &ldquo;Federated unlearning: how to efficiently erase a client in FL?&rdquo;
+    2022. <a href="https://arxiv.org/abs/2207.05521">arXiv:2207.05521</a></li>
+<li id="ref-chen2022">M. Chen, Z. Zhang, T. Wang, M. Backes, M. Humbert and Y. Zhang,
+    &ldquo;Graph unlearning,&rdquo; <i>ACM CCS</i>, 2022.
+    <a href="https://doi.org/10.1145/3548606.3559352">DOI</a></li>
+<li id="ref-yuan2023">W. Yuan, H. Yin, F. Wu, S. Zhang, T. He and H. Wang,
+    &ldquo;Federated unlearning for on-device recommendation,&rdquo; 2022.
+    <a href="https://arxiv.org/abs/2210.10958">arXiv:2210.10958</a></li>
+<li id="ref-maini2024">P. Maini, Z. Feng, A. Schwarzschild, Z. C. Lipton and J. Z. Kolter,
+    &ldquo;TOFU: a task of fictitious unlearning for LLMs,&rdquo; 2024.
+    <a href="https://arxiv.org/abs/2401.06121">arXiv:2401.06121</a></li>
+<li id="ref-zhang2024">R. Zhang, L. Lin, Y. Bai and S. Mei, &ldquo;Negative preference optimization: from catastrophic collapse to effective unlearning,&rdquo; 2024.
+    <a href="https://arxiv.org/abs/2404.05868">arXiv:2404.05868</a></li>
+<li id="ref-eldan2023">R. Eldan and M. Russinovich, &ldquo;Who&rsquo;s Harry Potter? Approximate unlearning in LLMs,&rdquo;
+    2023. <a href="https://arxiv.org/abs/2310.02238">arXiv:2310.02238</a></li>
+<li id="ref-li2024">N. Li, A. Pan, A. Gopal <i>et al.</i>, &ldquo;The WMDP benchmark: measuring and reducing malicious use with unlearning,&rdquo;
+    <i>ICML</i>, 2024. <a href="https://arxiv.org/abs/2403.03218">arXiv:2403.03218</a></li>
+<li id="ref-lynch2024">A. Lynch, P. Guo, A. Ewart, S. Casper and D. Hadfield-Menell,
+    &ldquo;Eight methods to evaluate robust unlearning in LLMs,&rdquo; 2024.
+    <a href="https://arxiv.org/abs/2402.16835">arXiv:2402.16835</a></li>
+<li id="ref-shokri2017">R. Shokri, M. Stronati, C. Song and V. Shmatikov, &ldquo;Membership inference attacks against machine learning models,&rdquo;
+    <i>IEEE Symposium on Security and Privacy</i>, 2017.
+    <a href="https://doi.org/10.1109/SP.2017.41">DOI</a></li>
+<li id="ref-carlini2022">N. Carlini, S. Chien, M. Nasr, S. Song, A. Terzis and F. Tram&egrave;r,
+    &ldquo;Membership inference attacks from first principles,&rdquo;
+    <i>IEEE Symposium on Security and Privacy</i>, 2022.
+    <a href="https://doi.org/10.1109/SP46214.2022.9833649">DOI</a></li>
+<li id="ref-goel2022">S. Goel, A. Prabhu, A. Sanyal, S.-N. Lim, P. Torr and P. Kumaraguru,
+    &ldquo;Towards adversarial evaluations for inexact machine unlearning,&rdquo; 2022.
+    <a href="https://arxiv.org/abs/2201.06640">arXiv:2201.06640</a></li>
+<li id="ref-thudi2022">A. Thudi, H. Jia, I. Shumailov and N. Papernot, &ldquo;On the necessity of auditable algorithmic definitions for machine unlearning,&rdquo;
+    <i>USENIX Security</i>, 2022.
+    <a href="https://arxiv.org/abs/2110.11891">arXiv:2110.11891</a></li>
+<li id="ref-sommer2020">D. M. Sommer, L. Song, S. Wagh and P. Mittal, &ldquo;Towards probabilistic verification of machine unlearning,&rdquo;
+    2020. <a href="https://arxiv.org/abs/2003.04247">arXiv:2003.04247</a></li>
+<li id="ref-hu2024">H. Hu, S. Wang, T. Dong and M. Xue, &ldquo;Learn what you want to unlearn: unlearning inversion attacks against machine unlearning,&rdquo;
+    <i>IEEE Symposium on Security and Privacy</i>, 2024.
+    <a href="https://arxiv.org/abs/2404.03233">arXiv:2404.03233</a></li>
+<li id="ref-chen2021">M. Chen, Z. Zhang, T. Wang, M. Backes, M. Humbert and Y. Zhang,
+    &ldquo;When machine unlearning jeopardizes privacy,&rdquo; <i>ACM CCS</i>, 2021.
+    <a href="https://doi.org/10.1145/3460120.3484756">DOI</a></li>
+<li id="ref-marchant2022">N. G. Marchant, B. I. P. Rubinstein and S. Alfeld, &ldquo;Hard to forget: poisoning attacks on certified machine unlearning,&rdquo;
+    <i>AAAI</i>, vol. 36, pp. 7691&ndash;7700, 2022.
+    <a href="https://doi.org/10.1609/aaai.v36i7.20736">DOI</a></li>
+</ol></div>
+</td>
+</tr>
+</table>
+</body>
+</html>

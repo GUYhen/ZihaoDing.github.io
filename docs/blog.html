@@ -44,8 +44,8 @@ MathJax.Hub.Config({
 
 <noscript>
 <ul>
-  <li>2026-08-26 &ndash; <a href="blog/federated-unlearning.html">Getting into Federated Unlearning</a></li>
-  <li>2026-08-22 &ndash; <a href="blog/hello-world.html">Starting this blog</a></li>
+  <li>2026-09-17 &ndash; <a href="blog/machine-unlearning/machine-unlearning.html">Machine Unlearning</a></li>
+  <li>2026-08-26 &ndash; <a href="blog/federated-unlearning/federated-unlearning.html">Getting into Federated Unlearning</a></li>
 </ul>
 </noscript>
 
@@ -70,21 +70,22 @@ MathJax.Hub.Config({
        an emoji character       drawn as-is
 
    `posts` = blog articles (papers stay on the Publication page).  Each one
-   is { date, title, excerpt, href, cover }, where `cover` is a real picture
-   for the panel --- a figure from the post, a photo, or one of the abstract
-   covers in blog/images/covers/.  Without one the row falls back to a plain
-   tinted tile with the topic tag on it.
+   is { date, title, excerpt, href, cover }.  Every post lives in its own
+   folder, blog/<post>/, holding the two language files and an images/ folder,
+   so `href` is blog/<post>/<post>.html and `cover` is normally
+   blog/<post>/images/cover.svg.  Without a cover the row falls back to a
+   plain tinted tile with the topic tag on it.
    `pending: true` = outlined "coming soon" node.
    ===================================================================== */
 
 var ROOT = {
   abbr: "MU", icon: "blog/icons/3d/brain.png", label: "Machine Unlearning", color: "#34405e",
   posts: [
-    { date: "2026-08-22", title: "Starting this blog",
-      excerpt: "Papers report the result that worked. This is where the " +
-               "reasoning and the dead ends go.",
-      cover: "blog/images/covers/notes.svg",
-      href: "blog/hello-world.html" }
+    { date: "2026-09-17", title: "Machine Unlearning",
+      excerpt: "The definitions, the three ways the field is carved up, what " +
+               "gets measured, and the ways unlearning is known to break.",
+      cover: "blog/machine-unlearning/images/cover.svg",
+      href: "blog/machine-unlearning/machine-unlearning.html" }
   ],
   children: [
     { abbr: "FU", icon: "blog/icons/3d/busts.png", label: "Federated Unlearning", color: "#527bbd",
@@ -92,8 +93,8 @@ var ROOT = {
         { date: "2026-08-26", title: "Getting into Federated Unlearning",
           excerpt: "Why a trained federated model cannot simply drop a " +
                    "client, and what people do about it.",
-          cover: "blog/images/covers/federated.svg",
-          href: "blog/federated-unlearning.html" }
+          cover: "blog/federated-unlearning/images/cover.svg",
+          href: "blog/federated-unlearning/federated-unlearning.html" }
       ],
       children: [] },
     { abbr: "LLMU", icon: "blog/icons/3d/robot.png", label: "LLM Unlearning", color: "#e8865e",

@@ -305,6 +305,10 @@ article.chapter .MJXc-display {
     overflow-y: hidden;
 }
 
+/* inline math plus the punctuation that follows it, kept on one line;
+   post.js builds these after MathJax has typeset */
+.mathglue { white-space: nowrap; }
+
 /* ---- footnotes --------------------------------------------------- */
 
 sup.fn { font-size: .72em; }
@@ -322,6 +326,23 @@ sup.fn a:link, sup.fn a:visited { color: var(--accent); border-bottom: none; }
 .footnotes ol { margin: 0; padding-left: 1.4em; }
 .footnotes li { margin: .4em 0; }
 
+/* ---- citations ---------------------------------------------------- */
+
+/* [4, 6] in the prose; post.js fills these in from the reference list */
+.cite {
+    white-space: nowrap;
+    font-size: .93em;
+}
+
+.cite a:link, .cite a:visited,
+a.figref:link, a.figref:visited {
+    color: var(--accent);
+    border-bottom: none;
+    text-decoration: none;
+}
+
+.cite a:hover, a.figref:hover { text-decoration: underline; }
+
 /* ---- references -------------------------------------------------- */
 
 .refs {
@@ -333,6 +354,16 @@ sup.fn a:link, sup.fn a:visited { color: var(--accent); border-bottom: none; }
 
 .refs ol { margin: .5em 0 0; padding-left: 1.5em; }
 .refs li { margin: .45em 0; }
+
+/* jumping to a reference or a figure should not glue it to the top of
+   the window, and the one you landed on should be obvious */
+.refs li, article.chapter figure { scroll-margin-top: 1.6em; }
+
+.refs li:target {
+    background: #fdf6e3;
+    box-shadow: 0 0 0 5px #fdf6e3;
+    border-radius: 2px;
+}
 
 /* ---- foot of the post -------------------------------------------- */
 

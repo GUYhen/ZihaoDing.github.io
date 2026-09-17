@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 290" width="400" height="290"
+     font-family="Georgia, 'Times New Roman', serif" role="img"
+     aria-label="A grid of training samples with two struck out, feeding a model.">
+  <rect width="400" height="290" fill="#f7f9fc"/>
+  <defs>
+    <marker id="ch" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8494ad"/>
+    </marker>
+  </defs>
+  <rect x="30" y="55" width="50" height="50" rx="9" fill="#e9f0fa" stroke="#527bbd" stroke-width="1.7"/>
+  <rect x="92" y="55" width="50" height="50" rx="9" fill="#e9f0fa" stroke="#527bbd" stroke-width="1.7"/>
+  <rect x="154" y="55" width="50" height="50" rx="9" fill="#fceade" stroke="#e8865e" stroke-width="2.2" stroke-dasharray="6 4"/>
+  <rect x="30" y="117" width="50" height="50" rx="9" fill="#e9f0fa" stroke="#527bbd" stroke-width="1.7"/>
+  <rect x="92" y="117" width="50" height="50" rx="9" fill="#e9f0fa" stroke="#527bbd" stroke-width="1.7"/>
+  <rect x="154" y="117" width="50" height="50" rx="9" fill="#e9f0fa" stroke="#527bbd" stroke-width="1.7"/>
+  <rect x="30" y="179" width="50" height="50" rx="9" fill="#e9f0fa" stroke="#527bbd" stroke-width="1.7"/>
+  <rect x="92" y="179" width="50" height="50" rx="9" fill="#fceade" stroke="#e8865e" stroke-width="2.2" stroke-dasharray="6 4"/>
+  <rect x="154" y="179" width="50" height="50" rx="9" fill="#e9f0fa" stroke="#527bbd" stroke-width="1.7"/>
+  <line x1="212" y1="145" x2="262" y2="145" stroke="#8494ad" stroke-width="2.4" marker-end="url(#ch)"/>
+  <circle cx="326" cy="145" r="54" fill="#eef3fa" stroke="#527bbd" stroke-width="2.6"/>
+  <text x="326" y="163" text-anchor="middle" font-size="50" font-style="italic" fill="#34405e">&#952;</text>
+</svg>

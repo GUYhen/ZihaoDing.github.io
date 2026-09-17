@@ -1,4 +1,4 @@
-# jemdoc: menu{MENU}{POST-zh.html}, nofooter, nodefaultcss, addcss{../jemdoc.css}, addcss{post}, addjs{post}
+# jemdoc: menu{MENU}{blog.html}{../../}, nofooter, nodefaultcss, addcss{../../jemdoc.css}, addcss{../post}, addjs{../post}
 = 文章标题
 
 ~~~

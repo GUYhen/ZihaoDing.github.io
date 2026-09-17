@@ -11,13 +11,13 @@ jo
 *.html
 # ...but the built site under docs/ must be published
 !docs/*.html
-!docs/blog/*.html
+!docs/blog/**/*.html
 # jemdoc's own sample pages -- not part of the site
 docs/link.html
 docs/mathjax.html
 docs/underscore.html
 # post templates are sources, not pages
-docs/blog/_*.html
+docs/blog/_template/*.html
 stage/
 
 # visitor log: never publish collected IPs

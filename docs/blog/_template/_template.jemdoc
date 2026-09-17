@@ -1,4 +1,4 @@
-# jemdoc: menu{MENU}{POST.html}, nofooter, nodefaultcss, addcss{../jemdoc.css}, addcss{post}, addjs{post}
+# jemdoc: menu{MENU}{blog.html}{../../}, nofooter, nodefaultcss, addcss{../../jemdoc.css}, addcss{../post}, addjs{../post}
 = Post Title
 
 ~~~
@@ -13,9 +13,11 @@
 # =============================================================================
 # HOW THIS TEMPLATE WORKS
 #
-# One post = two files, one per language.  Never mix languages in one file.
-#     POST.jemdoc      data-lang="en"   data-alt="POST-zh.html"
-#     POST-zh.jemdoc   data-lang="zh"   data-alt="POST.html"
+# One post = one folder, blog/POST/, holding two files, one per language.
+# Never mix languages in one file.
+#     blog/POST/POST.jemdoc      data-lang="en"   data-alt="POST-zh.html"
+#     blog/POST/POST-zh.jemdoc   data-lang="zh"   data-alt="POST.html"
+# Pictures go in blog/POST/images/ and are referenced as images/x.svg.
 # The header bar gets a back link to the blog and an EN / 中文 switch built
 # from those two attributes.  Drop data-alt and the switch disappears.
 #
@@ -27,7 +29,8 @@
 #   - adds the "Back to all posts" link at the foot
 #
 # Build it from docs/blog/ :
-#     python ..\..\jemdoc -c ..\mysite.conf POST.jemdoc
+#     cd docs
+#     python ..\jemdoc -c blogpost.conf blog\POST\POST.jemdoc
 #
 # Everything below is a live example.  Delete what you do not use.
 # =============================================================================
@@ -101,13 +104,14 @@ Display math goes in a raw block so jemdoc leaves the backslashes alone:
 ~~~
 {}{raw}
 <figure>
-  <img src="images/POST/fig1.png" alt="what the figure shows">
+  <img src="images/fig1.png" alt="what the figure shows">
   <figcaption>What the reader should take from it. Do not write the
   number --- post.js prefixes "Figure 1:" in document order.</figcaption>
 </figure>
 ~~~
 
-Put the images in {{<code>docs/blog/images/POST/</code>}}.
+Put the images in this post's own {{<code>images/</code>}} folder, that is
+in {{<code>docs/blog/POST/images/</code>}} --- see {{<code>docs/blog/README.md</code>}}.
 
 == Footnotes
 

@@ -65,4 +65,4 @@ problems.
 ---
 
 Post **cover pictures** are a different thing and live in
-`../images/covers/` --- see the note there.
+each post's own `images/` folder --- see `../README.md`.

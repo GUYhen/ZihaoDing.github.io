@@ -1,4 +1,4 @@
-# jemdoc: menu{MENU}{federated-unlearning.html}, nofooter, nodefaultcss, addcss{../jemdoc.css}, addcss{post}, addjs{post}
+# jemdoc: menu{MENU}{blog.html}{../../}, nofooter, nodefaultcss, addcss{../../jemdoc.css}, addcss{../post}, addjs{../post}
 = Federated Unlearning
 
 ~~~
