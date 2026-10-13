@@ -180,6 +180,7 @@ Zihao Ding received his B.S. degree in Electronic and Information Engineering fr
 == Co-Author Papers
 # NOTE: no blank lines between the "." items -- a blank line ends the
 # list, and the next paper starts a brand new one numbered from 1 again.
+. B. Wu, *Z. Ding*, J. Huang, "Not All Experience Belongs in the Weights: Component Routing for Self-Improving GUI Agents", arXiv, 2026. (/Preprint/) \[[https://arxiv.org/abs/2610.01787 PDF]\]
 . B. Wu, *Z. Ding*, J. Huang, Y. Zhao, "Forget to Improve: On-Device LLM-Agent Continual Learning via Budget-Curated Memory", arXiv, 2026. (/Preprint/) \[[https://arxiv.org/abs/2606.25115 PDF]\]
 . B. Wu, *Z. Ding*, J. Huang, "RELIEF: Turning Missing Modalities into Training Acceleration for Federated Learning on Heterogeneous IoT Edge", IEEE Internet of Things Journal, 2026. \[[https://arxiv.org/abs/2604.04243 PDF]\]
 . B. Wu, *Z. Ding*, J. Huang, "PRISM: Exposing and Resolving Spurious Isolation in Federated Multimodal Continual Learning", IEEE Transactions on Multimedia, 2026. \[[https://arxiv.org/abs/2605.01061 PDF]\]
