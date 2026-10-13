@@ -62,6 +62,94 @@ Zihao Ding received his B.S. degree in Electronic and Information Engineering fr
 ~~~
 {}{raw}
 <div class="pubcard">
+  <a class="pubcard-fig" href="https://github.com/GUYhen/ZihaoDing.github.io/blob/master/docs/paper_image/full/arxiv_atone_2026.png" target="_blank" title="Click for the full-resolution figure">
+    <img src="paper_image/arxiv_atone_2026.png" alt="ATONE: symptom-driven unlearning in a federated vehicular network" />
+  </a>
+  <div class="pubcard-body">
+    <div class="pubcard-title">
+      Initiating Removal from Operational Symptoms in Federated Vehicular Networks
+    </div>
+    <div class="pubcard-authors"><b>Zihao Ding</b>, Jun Huang, Qiang Duan</div>
+    <div class="pubcard-venue">Preprint, 2026</div>
+    <div class="pubcard-desc">
+      Connected vehicles train a driving model by federated learning, so a faulty contribution usually<br />
+      surfaces only as a delayed symptom on the road, naming neither the vehicle nor the round. ATONE<br />
+      makes unlearning a term of the aggregation rule: it projects driving errors and reported symptoms<br />
+      onto a subspace of recent global increments, scores every contribution in one backward pass, and<br />
+      suppresses suspected effects each round before a one-round probe confirms which to eliminate.
+    </div>
+  </div>
+</div>
+~~~
+~~~
+{}{raw}
+<div class="pubcard">
+  <a class="pubcard-fig" href="https://github.com/GUYhen/ZihaoDing.github.io/blob/master/docs/paper_image/full/arxiv_herd_2026.png" target="_blank" title="Click for the full-resolution figure">
+    <img src="paper_image/arxiv_herd_2026.png" alt="HERD: knowledge lineage and delta-closure under mutual distillation" />
+  </a>
+  <div class="pubcard-body">
+    <div class="pubcard-title">
+      Tracing Knowledge Lineage for Federated Unlearning under Mutual Distillation
+    </div>
+    <div class="pubcard-authors"><b>Zihao Ding</b>, Jun Huang, Guodong Wang</div>
+    <div class="pubcard-venue">Preprint, 2026</div>
+    <div class="pubcard-desc">
+      An edge server and nearby devices train language models of different sizes by mutual distillation,<br />
+      so correcting one model is not enough &mdash; the students that copied the removed knowledge teach it<br />
+      back on their next upload. HERD reads a knowledge lineage graph off the transfers the server already<br />
+      performs, counts how many times each residual will be copied, and corrects the cheapest set of<br />
+      holders that bounds what survives.
+    </div>
+  </div>
+</div>
+~~~
+~~~
+{}{raw}
+<div class="pubcard">
+  <a class="pubcard-fig" href="https://github.com/GUYhen/ZihaoDing.github.io/blob/master/docs/paper_image/full/arxiv_sweep_2026.png" target="_blank" title="Click for the full-resolution figure">
+    <img src="paper_image/arxiv_sweep_2026.png" alt="SWEEP: structured deletion units on a channel knowledge map" />
+  </a>
+  <div class="pubcard-body">
+    <div class="pubcard-title">
+      Structuring and Merging Deletion Demands on Crowdsourced Channel Knowledge Maps
+    </div>
+    <div class="pubcard-authors"><b>Zihao Ding</b>, Jun Huang</div>
+    <div class="pubcard-venue">Preprint, 2026</div>
+    <div class="pubcard-desc">
+      A channel knowledge map built from uplink pilots has to forget the measurements a fault corrupted,<br />
+      but dropping the whole terminal throws away its good ones and the raw reports are long gone. SWEEP<br />
+      names what to forget as a structured deletion unit over terminals, rounds, grids and bands, clears<br />
+      the matching ledger blocks, re-sounds the affected grids, and merges pending demands so that one<br />
+      campaign serves several.
+    </div>
+  </div>
+</div>
+~~~
+~~~
+{}{raw}
+<div class="pubcard">
+  <a class="pubcard-fig" href="https://github.com/GUYhen/ZihaoDing.github.io/blob/master/docs/paper_image/full/arxiv_shade_2026.png" target="_blank" title="Click for the full-resolution figure">
+    <img src="paper_image/arxiv_shade_2026.png" alt="SHADE: classical-shadow unlearning for quantum federated learning" />
+  </a>
+  <div class="pubcard-body">
+    <div class="pubcard-title">
+      Federated Unlearning of Quantum Data via Classical Shadows
+    </div>
+    <div class="pubcard-authors"><b>Zihao Ding</b>, Jun Huang, Cong-cong Xing</div>
+    <div class="pubcard-venue">Preprint, 2026</div>
+    <div class="pubcard-desc">
+      Quantum federated learning cannot replay the data it is asked to forget, because a quantum state is<br />
+      consumed when it is measured and cannot be cloned. SHADE has each node record a classical shadow of<br />
+      every training state as training happens, estimates the gradient and curvature of the forget data<br />
+      from those shadows at any later parameters, and removes their effect with a federated Newton<br />
+      correction. Only classical estimates cross the network.
+    </div>
+  </div>
+</div>
+~~~
+~~~
+{}{raw}
+<div class="pubcard">
   <a class="pubcard-fig" href="https://github.com/GUYhen/ZihaoDing.github.io/blob/master/docs/paper_image/full/arxiv_mute_2026.png" target="_blank" title="Click for the full-resolution figure">
     <img src="paper_image/arxiv_mute_2026.png" alt="MUTE: influence echo in a self-improving federated agent network" />
   </a>
