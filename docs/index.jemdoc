@@ -23,6 +23,8 @@ Zihao Ding received his B.S. degree in Electronic and Information Engineering fr
 <div class="newsbox">
 ~~~
 
+- October 2026: (Workshop) Our work “ERRAND: Budgeted Maintenance of Agent Memory” was accepted by the NeurIPS 2026 Workshop on Towards Test-Time Continual Learning Agents (/TTCL/).
+
 - August 2026: (Journal) Our work “RELIEF: Turning Missing Modalities into Training Acceleration for Federated Learning on Heterogeneous IoT Edge” was accepted by IEEE Internet of Things Journal (/IoTJ/).
 
 - August 2026: (Journal) Our work “PRISM: Exposing and Resolving Spurious Isolation in Federated Multimodal Continual Learning” was accepted by IEEE Transactions on Multimedia (/TMM/).
@@ -268,6 +270,7 @@ Zihao Ding received his B.S. degree in Electronic and Information Engineering fr
 == Co-Author Papers
 # NOTE: no blank lines between the "." items -- a blank line ends the
 # list, and the next paper starts a brand new one numbered from 1 again.
+. B. Wu, *Z. Ding*, J. Huang, "ERRAND: Budgeted Maintenance of Agent Memory", NeurIPS Workshop on Towards Test-Time Continual Learning Agents (TTCL), 2026. \[[https://arxiv.org/abs/2609.29545 PDF]\]
 . B. Wu, *Z. Ding*, J. Huang, "Not All Experience Belongs in the Weights: Component Routing for Self-Improving GUI Agents", arXiv, 2026. (/Preprint/) \[[https://arxiv.org/abs/2610.01787 PDF]\]
 . B. Wu, *Z. Ding*, J. Huang, Y. Zhao, "Forget to Improve: On-Device LLM-Agent Continual Learning via Budget-Curated Memory", arXiv, 2026. (/Preprint/) \[[https://arxiv.org/abs/2606.25115 PDF]\]
 . B. Wu, *Z. Ding*, J. Huang, "RELIEF: Turning Missing Modalities into Training Acceleration for Federated Learning on Heterogeneous IoT Edge", IEEE Internet of Things Journal, 2026. \[[https://arxiv.org/abs/2604.04243 PDF]\]
