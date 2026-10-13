@@ -47,15 +47,16 @@ if errorlevel 1 (
 )
 echo.
 
-REM Compile blog posts (skip files starting with _)
-pushd blog
-for %%f in (*.jemdoc) do (
-    echo %%~nf| findstr /b "_" >nul || (
-        echo Compiling blog\%%f...
-        python ..\..\jemdoc -c ..\mysite.conf %%f
+REM Compile blog posts: one folder per post, built from docs\ with blogpost.conf
+REM (folders starting with _ are templates and are skipped)
+for /d %%d in (blog\*) do (
+    echo %%~nxd| findstr /b "_" >nul || (
+        for %%f in ("%%d\*.jemdoc") do (
+            echo Compiling %%f...
+            python ..\jemdoc -c blogpost.conf "%%f"
+        )
     )
 )
-popd
 echo.
 
 echo ========================================

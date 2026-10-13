@@ -31,20 +31,23 @@ foreach ($file in $files) {
     Write-Host ""
 }
 
-# Blog posts live one level down and use blog\MENU + ..\jemdoc.css
-$posts = Get-ChildItem -Path "blog" -Filter "*.jemdoc" | Where-Object { $_.Name -notlike "_*" }
+# One folder per post under blog\. Built from docs\ with blogpost.conf, which
+# only differs from mysite.conf in the favicon path. Folders starting with _
+# are templates and are skipped.
+$posts = Get-ChildItem -Path "blog" -Directory |
+         Where-Object { $_.Name -notlike "_*" } |
+         ForEach-Object { Get-ChildItem -Path $_.FullName -Filter "*.jemdoc" }
 foreach ($post in $posts) {
-    Write-Host "Compiling blog/$($post.Name)..." -ForegroundColor Yellow
-    Push-Location "blog"
-    python ..\..\jemdoc -c ..\mysite.conf $post.Name
+    $rel = Join-Path "blog" (Join-Path $post.Directory.Name $post.Name)
+    Write-Host "Compiling $rel..." -ForegroundColor Yellow
+    python ..\jemdoc -c blogpost.conf $rel
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "[OK] Successfully compiled blog/$($post.Name)" -ForegroundColor Green
+        Write-Host "[OK] Successfully compiled $rel" -ForegroundColor Green
         $successCount++
     } else {
-        Write-Host "[ERROR] Failed to compile blog/$($post.Name)" -ForegroundColor Red
+        Write-Host "[ERROR] Failed to compile $rel" -ForegroundColor Red
         $failCount++
     }
-    Pop-Location
     Write-Host ""
 }
 
