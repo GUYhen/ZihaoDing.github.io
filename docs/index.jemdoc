@@ -14,7 +14,7 @@ Email: Zihao.Ding \[@\] jacks.sdstate.edu \n
 ~~~
 
 == About me
-Zihao Ding received his B.S. degree in Electronic and Information Engineering from Anhui Normal University, Wuhu, China, in 2025. Currently, he is pursuing his PhD degree in Computer Science at the McComish Department of Electrical Engineering and Computer Science, South Dakota State University, Brookings, USA (Advisor: Prof. Jun Huang). His research interests include Machine Learning, Federated Learning, Federated Unlearning, Computer Networks, Wireless Networks.
+Zihao Ding received his B.S. degree in Electronic and Information Engineering from Anhui Normal University, Wuhu, China, in 2025. Currently, he is pursuing his PhD degree in Computer Science at the McComish Department of Electrical Engineering and Computer Science, South Dakota State University, Brookings, USA (Advisor: [https://johnhuang2.github.io/ Prof. Jun Huang]). His research interests include Machine Learning, Federated Learning, Federated Unlearning, Computer Networks, Wireless Networks.
 
 == News
 
@@ -55,7 +55,7 @@ Zihao Ding received his B.S. degree in Electronic and Information Engineering fr
 == Background
 - South Dakota State University, Brookings, USA (2025 - present) \n
   PhD student, Computer Science \n
-  Advisor: Prof. Jun Huang \n
+  Advisor: [https://johnhuang2.github.io/ Prof. Jun Huang] \n
 
 - Anhui Normal University, Wuhu, China (2021 - 2025) \n
   Bachelor of Engineering, Electronic and Information Engineering \n
@@ -72,7 +72,7 @@ Zihao Ding received his B.S. degree in Electronic and Information Engineering fr
       Initiating Removal from Operational Symptoms in Federated Vehicular Networks
     </div>
     <div class="pubcard-authors"><b>Zihao Ding</b>, Jun Huang, Qiang Duan</div>
-    <div class="pubcard-venue">Preprint, 2026</div>
+    <div class="pubcard-venue preprint">Preprint, 2026</div>
     <div class="pubcard-desc">
       Connected vehicles train a driving model by federated learning, so a faulty contribution usually<br />
       surfaces only as a delayed symptom on the road, naming neither the vehicle nor the round. ATONE<br />
@@ -95,7 +95,7 @@ Zihao Ding received his B.S. degree in Electronic and Information Engineering fr
       [<a href="https://arxiv.org/abs/2610.19072" target="_blank">PDF</a>]
     </div>
     <div class="pubcard-authors"><b>Zihao Ding</b>, Jun Huang, Guodong Wang</div>
-    <div class="pubcard-venue">arXiv:2610.19072, 2026 (Preprint)</div>
+    <div class="pubcard-venue preprint">arXiv:2610.19072, 2026 (Preprint)</div>
     <div class="pubcard-desc">
       An edge server and nearby devices train language models of different sizes by mutual distillation,<br />
       so correcting one model is not enough &mdash; the students that copied the removed knowledge teach it<br />
@@ -117,7 +117,7 @@ Zihao Ding received his B.S. degree in Electronic and Information Engineering fr
       Structuring and Merging Deletion Demands on Crowdsourced Channel Knowledge Maps
     </div>
     <div class="pubcard-authors"><b>Zihao Ding</b>, Jun Huang</div>
-    <div class="pubcard-venue">Preprint, 2026</div>
+    <div class="pubcard-venue preprint">Preprint, 2026</div>
     <div class="pubcard-desc">
       A channel knowledge map built from uplink pilots has to forget the measurements a fault corrupted,<br />
       but dropping the whole terminal throws away its good ones and the raw reports are long gone. SWEEP<br />
@@ -140,7 +140,7 @@ Zihao Ding received his B.S. degree in Electronic and Information Engineering fr
       [<a href="https://arxiv.org/abs/2610.19077" target="_blank">PDF</a>]
     </div>
     <div class="pubcard-authors"><b>Zihao Ding</b>, Jun Huang, Cong-cong Xing</div>
-    <div class="pubcard-venue">arXiv:2610.19077, 2026 (Preprint)</div>
+    <div class="pubcard-venue preprint">arXiv:2610.19077, 2026 (Preprint)</div>
     <div class="pubcard-desc">
       Quantum federated learning cannot replay the data it is asked to forget, because a quantum state is<br />
       consumed when it is measured and cannot be cloned. SHADE has each node record a classical shadow of<br />
@@ -163,7 +163,7 @@ Zihao Ding received his B.S. degree in Electronic and Information Engineering fr
       [<a href="https://arxiv.org/abs/2607.28829" target="_blank">PDF</a>]
     </div>
     <div class="pubcard-authors"><b>Zihao Ding</b>, Jun Huang, Liang Dong</div>
-    <div class="pubcard-venue">arXiv:2607.28829, 2026 (Preprint)</div>
+    <div class="pubcard-venue preprint">arXiv:2607.28829, 2026 (Preprint)</div>
     <div class="pubcard-desc">
       Self-improving agent networks keep training after deployment, so deleted data can echo back<br />
       through the trajectories collected in later rounds. MUTE estimates that downstream influence<br />
@@ -185,7 +185,7 @@ Zihao Ding received his B.S. degree in Electronic and Information Engineering fr
       [<a href="https://arxiv.org/abs/2605.00733" target="_blank">PDF</a>]
     </div>
     <div class="pubcard-authors"><b>Zihao Ding</b>, Beining Wu, Jun Huang</div>
-    <div class="pubcard-venue">arXiv:2605.00733, 2026 (Preprint)</div>
+    <div class="pubcard-venue preprint">arXiv:2605.00733, 2026 (Preprint)</div>
     <div class="pubcard-desc">
       Forgotten image&ndash;text alignments survive federated unlearning through three residual anchors.<br />
       EASE closes each one: bilateral displacement of the visual and language branches,<br />
@@ -207,7 +207,7 @@ Zihao Ding received his B.S. degree in Electronic and Information Engineering fr
       [<a href="https://arxiv.org/abs/2604.26105" target="_blank">PDF</a>]
     </div>
     <div class="pubcard-authors"><b>Zihao Ding</b>, Beining Wu, Jun Huang, Shiwen Mao</div>
-    <div class="pubcard-venue">arXiv:2604.26105, 2026 (Preprint)</div>
+    <div class="pubcard-venue preprint">arXiv:2604.26105, 2026 (Preprint)</div>
     <div class="pubcard-desc">
       Federated split learning at the wireless edge couples bandwidth, power, split-layer placement,<br />
       compression and terminal participation under per-round deadline and memory limits. TiLP scores<br />

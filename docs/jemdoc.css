@@ -417,26 +417,20 @@ table.imgtable, table.imgtable td {
     overflow: hidden;
     padding: 4px;
     box-sizing: border-box;
-}
-
-/* Near-square figures: mild widening -- raise the ratio for more stretch, lower for less */
-.pubcard-fig.stretch img {
-    height: 100%;
-    width: auto;
-    aspect-ratio: 1.5;
-    object-fit: fill;
+    box-shadow: 0 2px 7px rgba(0, 0, 0, 0.15);
 }
 
 /* Thumbnail is a link to the full-resolution figure */
 a.pubcard-fig {
     text-decoration: none;
     cursor: zoom-in;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 a.pubcard-fig:hover {
     border-color: #999;
-    box-shadow: 0 0 4px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.24);
+    transform: translateY(-2px);
 }
 
 .pubcard-fig img {
@@ -464,11 +458,27 @@ a.pubcard-fig:hover {
     color: #333;
 }
 
+/* Where it was published -- a badge, so the eye lands on it */
 .pubcard-venue {
-    margin-top: 0.15em;
-    font-size: 0.92em;
-    font-style: italic;
-    color: #333;
+    display: inline-block;
+    margin-top: 0.35em;
+    padding: 2px 10px 3px;
+    border-radius: 3px;
+    background: #1f3864;
+    color: #fff;
+    font-size: 0.84em;
+    font-style: normal;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+}
+
+/* Not accepted anywhere yet -- same shape, quieter */
+.pubcard-venue.preprint {
+    background: #edeff3;
+    color: #4a5163;
+    font-weight: 500;
+    box-shadow: none;
 }
 
 .pubcard-desc {
