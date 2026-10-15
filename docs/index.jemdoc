@@ -92,9 +92,10 @@ Zihao Ding received his B.S. degree in Electronic and Information Engineering fr
   <div class="pubcard-body">
     <div class="pubcard-title">
       Tracing Knowledge Lineage for Federated Unlearning under Mutual Distillation
+      [<a href="https://arxiv.org/abs/2610.19072" target="_blank">PDF</a>]
     </div>
     <div class="pubcard-authors"><b>Zihao Ding</b>, Jun Huang, Guodong Wang</div>
-    <div class="pubcard-venue">Preprint, 2026</div>
+    <div class="pubcard-venue">arXiv:2610.19072, 2026 (Preprint)</div>
     <div class="pubcard-desc">
       An edge server and nearby devices train language models of different sizes by mutual distillation,<br />
       so correcting one model is not enough &mdash; the students that copied the removed knowledge teach it<br />
@@ -136,9 +137,10 @@ Zihao Ding received his B.S. degree in Electronic and Information Engineering fr
   <div class="pubcard-body">
     <div class="pubcard-title">
       Federated Unlearning of Quantum Data via Classical Shadows
+      [<a href="https://arxiv.org/abs/2610.19077" target="_blank">PDF</a>]
     </div>
     <div class="pubcard-authors"><b>Zihao Ding</b>, Jun Huang, Cong-cong Xing</div>
-    <div class="pubcard-venue">Preprint, 2026</div>
+    <div class="pubcard-venue">arXiv:2610.19077, 2026 (Preprint)</div>
     <div class="pubcard-desc">
       Quantum federated learning cannot replay the data it is asked to forget, because a quantum state is<br />
       consumed when it is measured and cannot be cloned. SHADE has each node record a classical shadow of<br />
@@ -264,7 +266,7 @@ Zihao Ding received his B.S. degree in Electronic and Information Engineering fr
 # list, and the next paper starts a brand new one numbered from 1 again.
 . *Z. Ding*, J. Huang, Y. Zhao, Z. Cai, "Combating Knowledge Diversity and Catastrophic Forgetting in UAV-Assisted Collaborative Vehicular Learning: A Game-Theoretic Approach", ACM Transactions on Autonomous and Adaptive Systems (TAAS), 2026. \[[https://dl.acm.org/doi/10.1145/3820769 PDF]\]
 . *Z. Ding*, J. Huang, J. Qi, "Learning to Defend: A Multi-Agent Reinforcement Learning Framework for Stackelberg Security Game in Mobile Edge Computing", International Conference on Computing, Networking and Communications (ICNC), 2026. \[[https://ieeexplore.ieee.org/document/11416846 PDF]\] *|* \[[https://github.com/GUYhen/Learning_to_Defend Code]\]
-. *Z. Ding*, J. Huang, Q. Duan, C. Zhang, Y. Zhao, S. Gu, "A Dual-Level Game-Theoretic Approach for Collaborative Learning in UAV-Assisted Heterogeneous Vehicle Networks", IPCCC, 2025. (*Best Paper Award, 1\/34\/147, CCF-C*) \[[https://ieeexplore.ieee.org/document/11304656 PDF]\] 
+. *Z. Ding*, J. Huang, Q. Duan, C. Zhang, Y. Zhao, S. Gu, "A Dual-Level Game-Theoretic Approach for Collaborative Learning in UAV-Assisted Heterogeneous Vehicle Networks", IPCCC, 2025. (*Best Paper Award, 1\/34\/147*) \[[https://ieeexplore.ieee.org/document/11304656 PDF]\] 
 
 
 == Co-Author Papers
