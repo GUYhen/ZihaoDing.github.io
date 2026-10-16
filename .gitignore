@@ -20,3 +20,43 @@ stage/
 visitor-log/visits.db
 visitor-log/*.db
 visitor-log/tunnel-url.txt
+
+# ============================================================
+# This repo publishes the BUILT SITE only.
+#
+# Everything jemdoc reads to produce the HTML -- the .jemdoc sources, MENU,
+# the .conf files, the build scripts and jemdoc itself -- lives on the author's
+# machine and is deliberately not tracked. Workflow: edit the .jemdoc, run
+# docs/build.ps1, commit the regenerated .html.
+#
+# Kept on purpose even though they are not HTML or images, because the live
+# pages load them: docs/blog/post.js, the three .css files, docs/CNAME,
+# docs/.nojekyll, and docs/blog/icons/LICENSE-fluent-emoji.txt (the licence for
+# the emoji artwork this site redistributes).
+# ============================================================
+
+# jemdoc sources and build tooling
+*.jemdoc
+docs/MENU
+docs/*.conf
+docs/build.ps1
+docs/build.bat
+/jemdoc
+/latexmath2png.py
+
+# working notes and agent config, not part of the site
+.claude/
+docs/AGENTS.md
+docs/blog/README.md
+docs/blog/icons/README.md
+docs/blog/machine-unlearning/images/README.md
+docs/blog/machine-unlearning/images/paper-figures.json
+
+# the visitor-log tool is a separate program, not part of the site
+visitor-log/
+
+# upstream jemdoc leftovers, referenced by nothing on this site
+/css/
+/example/
+/notes
+/Makefile
