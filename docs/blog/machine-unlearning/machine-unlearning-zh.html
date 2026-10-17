@@ -48,17 +48,21 @@ MathJax.Hub.Config({
 <div id="toptitle">
 <h1>机器遗忘</h1>
 </div>
-<div class="postmeta" data-topic="机器遗忘" data-date="2026 年 9 月 17 日" data-lang="zh" data-alt="machine-unlearning.html"></div>
+<div class="postmeta" data-topic="机器遗忘" data-date="2026 年 10 月 16 日" data-lang="zh" data-alt="machine-unlearning.html"></div>
 <p>假设一家医院曾经用患者数据参与训练一个诊断模型，现在要求撤回这批数据。把文件从数据库中删除，可以阻止它们再次进入训练，却不会自动改变已经训练好的模型。这些记录可能已经影响了模型的预测，模型也可能泄露其中的信息。机器遗忘（machine unlearning）研究的就是：怎样移除指定数据对训练结果的影响，同时尽量保留模型的正常用途。Cao 和 Yang 的早期工作对这一问题进行了系统研究<span class="cite" data-ref="cao2015"></span>。
 </p>
-<p>类似的需求还来自错误标签、退出训练的参与方，以及后来才发现的投毒样本。不过，这些任务的成功标准并不完全相同。一个方法能修复投毒造成的准确率下降，不代表它已经移除了投毒记录对模型的全部影响。讨论某个方法之前，必须先弄清楚它到底要删什么，以及怎样才算删掉了。
+<p>最直接的办法是只用允许保留的数据重新训练。重训练本身就是一种有效的遗忘方法，也给其他方法提供了参照。研究的难点在于：能不能少做一些计算，又不在不知不觉中降低要求？下面先把这个参照写清楚，再讨论集中式算法、联邦学习、大语言模型、评测，以及连续删除请求。
 </p>
-<p>最直接的办法是只用允许保留的数据重新训练。重训练本身就是一种有效的遗忘方法，也给其他方法提供了参照。研究的难点在于：能不能少做一些计算，又不在不知不觉中降低要求？下面先把这个参照写清楚，再讨论集中式算法、联邦学习、大语言模型、评测，以及连续删除请求。每节的配图都截取自所讨论的论文，图注给出原图编号、页码和来源。<a class="figref" data-fig="1"></a> 就是 Cao 和 Yang 提出的那种改写。
+<p>每一章都会落到我们自己的工作上。本文的配图全部来自我们的论文，每章一张。放这些图有一个具体的理由：定义只告诉你什么必须成立，它不会告诉你，当你真的要在一个部署系统上满足它时，系统会长成什么样子。图展示的是后者。任何一张图都不是“定义已经被满足”的证据。
+</p>
+<p>先说定义里悄悄做出的一个假设。写下 \(\mathcal{D}^{\textrm{f}}\) 的前提是，有人能指出它包含哪些记录。很多时候没人指得出来。运维方只看到下游出了问题，然后必须反推回数据，<a class="figref" data-fig="1"></a> 就是这种情况。
 </p>
 <figure id="fig-1">
-<a href="images/cao-yang-figure-1.png"><img src="images/cao-yang-figure-1.png" width="640" alt="Cao 和 Yang 原论文示意图：左侧模型直接依赖每一条训练样本，右侧把学习算法改写成少量求和项。" loading="lazy"></a>
-<figcaption>遗忘介入的是训练流程的哪一段。截取自 Cao 和 Yang 的 <i>Towards Making Systems Forget with Machine Unlearning</i>，原 Fig. 1，PDF 第 2 页<span class="cite" data-ref="cao2015"></span>（<a href="https://yinzhicao.org/unlearning/UnlearningOakland15.pdf#page=2">原论文 PDF</a>）。左侧模型直接依赖每一条训练样本，因此撤回一条样本就要重新训练。右侧先把学习算法改写成若干个对变换后样本的求和项，删除时只更新这些求和项。这种改写只适用于能写成该形式的算法，所以它是一类方法的构造，而不是通用解法。</figcaption>
+<a href="../../paper_image/full/arxiv_atone_2026.png"><img src="../../paper_image/arxiv_atone_2026.png" width="760" alt="ATONE：联邦车联网中的驾驶模型，有害贡献只以延迟出现的路面症状暴露，一次反向传播为所有贡献打分。" loading="lazy"></a>
+<figcaption>一个指不出记录的删除请求。来自我们关于“由运行症状触发删除”的论文<span class="cite" data-ref="ding-atone"></span>。联网车辆用联邦学习训练驾驶模型。有问题的贡献不会自己报到，它要过一段时间才以一次险情的形式暴露出来，而且既说不出是哪辆车，也说不出是哪一轮。这项工作把遗忘变成聚合规则里的一项：把驾驶误差和上报的症状投影到最近若干轮全局增量张成的子空间上，用一次反向传播为每个贡献打分，每轮先压制可疑影响，再用一轮探测确认该消除哪些。最下面一行是硬件平台。这张图讲的是遗忘集怎么<i>找出来</i>；找到之后，后文的那些保证一个都不能少。<a href="../../paper_image/full/arxiv_atone_2026.png">查看完整分辨率</a>。</figcaption>
 </figure>
+<p>同样的落差还出现在错误标签、退出训练的参与方，以及后来才发现的投毒样本上。这些任务彼此相关，但成功标准并不相同。一个方法能修复投毒造成的准确率下降，不代表它已经移除了投毒记录对模型的全部影响。
+</p>
 <h2>模型“忘掉了”，究竟是什么意思？</h2>
 <h3>先说清楚数据和训练过程</h3>
 <p>用 \(\mathcal{D}\) 表示原始训练集。一次请求指定遗忘集 \(\mathcal{D}^{\textrm{f}}\subseteq\mathcal{D}\)，剩下的是保留集 \(\mathcal{D}^{\textrm{r}}=\mathcal{D}\setminus\mathcal{D}^{\textrm{f}}\)。这里按记录身份区分样本：两条内容相同的记录，仍然可能是两个不同的训练样本。除非另有说明，下面假设保留集非空。
@@ -77,6 +81,7 @@ MathJax.Hub.Config({
 <tr><td>\(\mathcal{S};\epsilon,\delta\)</td><td>参数空间中的可测集合；非负的乘性预算和加性概率松弛，其中 \(0\leq\delta&lt;1\)。</td></tr>
 <tr><td>\(\mathcal{D}_k; k,N\)</td><td>客户端 \(k\) 的本地数据集；客户端编号和客户端总数。</td></tr>
 <tr><td>\(\boldsymbol{\theta}[t]; t,T\)</td><td>第 \(t\) 轮的全局参数；轮次编号和训练总轮数。</td></tr>
+<tr><td>\(\mathbf{g}^{\textrm{r}},\mathbf{H}^{\textrm{r}}\)</td><td>保留集目标在 \(\boldsymbol{\theta}^{\textrm{old}}\) 处的梯度和 Hessian 矩阵。</td></tr>
 <tr><td>\(\mathcal{Q}^{\textrm{f}},\mathcal{Q}^{\textrm{r}}\)</td><td>语言模型评测中的遗忘查询集和效用查询集。</td></tr>
 </tbody></table></div>
 <p>先考虑集中式场景，即遗忘算法能够访问原始数据及删除请求。遗忘结果和重训练参照分别为
@@ -88,17 +93,13 @@ MathJax.Hub.Config({
 \boldsymbol{\theta}^{\star}&amp;=\mathcal{A}(\mathcal{D}^{\textrm{r}}).
 \end{aligned}
 \]
-</p><p>这个接口表示算法可获得哪些信息，并不要求每种方法都读取全部记录。一些方法还要保存检查点、优化器状态或训练统计量。这些都属于额外状态，不能从存储开销中略去；如果保证需要覆盖这些状态，也必须在定义中明确。后面的联邦场景会进一步限制服务器能够访问的信息。
+</p><p>这个接口表示算法可获得哪些信息，并不要求每种方法都读取全部记录。一些方法还要保存检查点、优化器状态或训练统计量。这些都属于额外状态，不能从存储开销中略去；如果保证需要覆盖这些状态，也必须在定义中明确。后面的章节会讨论服务器访问不到数据时会发生什么，以及连遗忘集本身都读不到第二遍时又会发生什么。
 </p>
 <h3>为什么比较的是分布，而不是两组权重？</h3>
 <p>即使用同一份数据训练两次，随机初始化、批次顺序等因素也可能让两次训练得到不同的权重。因此，\(\boldsymbol{\theta}^{\star}\) 通常是一个随机变量。遗忘所比较的是指定训练过程反复运行时产生的模型分布，而不是挑出某一次重训练的检查点，要求遗忘模型与它逐元素相等。如果训练算法是确定性的，分布就退化为只集中在一个输出上的特殊情况。
 </p>
-<p>这也解释了 <a class="figref" data-fig="2"></a> 中的两条路径：移除一条记录的训练影响，不一定要回到“当初学习这条记录之前”的那组权重。从保留数据重新训练，可以走到另一个同样合法的结果。
+<p>有一个推论值得直接说出来，因为它是这个领域被误解得最多的一点：移除一条记录的训练影响，不一定要回到“当初学习这条记录之前”的那组权重。训练没有撤销键，回退到旧检查点和“在没有这条记录的情况下重新训练”是两件不同的事。从保留数据重新训练，完全可能走到另一个位置，而那并不算失败。
 </p>
-<figure id="fig-2">
-<a href="images/sisa-figure-1.png"><img src="images/sisa-figure-1.png" width="600" alt="SISA 原论文示意图：学习一个样本、回退到旧检查点，以及删除该样本后重新训练的不同路径。" loading="lazy"></a>
-<figcaption>训练历史与重训练参照不是同一条路径。截取自 Bourtoule 等人的 <i>Machine Unlearning</i>，原 Fig. 1，PDF 第 4 页<span class="cite" data-ref="bourtoule2021"></span>（<a href="https://arxiv.org/pdf/1912.03817v3#page=4">原论文 PDF</a>）。原图中的 \(D\) 对应本文的保留集，后来加入的那个点对应单样本遗忘集。下方两个模型是在相同保留数据上得到的不同训练结果。这张图用于说明问题，不应把它理解成对所有模型都成立的不可能性定理。</figcaption>
-</figure>
 <div class="defn"><span class="head">定义 1：精确遗忘，针对一次固定请求。</span>
 给定训练算法 \(\mathcal{A}\)，如果对每个允许的数据集和遗忘集，遗忘算法 \(\mathcal{U}\) 都满足
 \[
@@ -124,20 +125,22 @@ MathJax.Hub.Config({
 <p>差分隐私有助于理解这一界限的形式<span class="cite" data-ref="dwork2014"></span>。如果训练算法在“增加或删除一条记录”的相邻关系下满足差分隐私，那么对于一次固定的单记录删除，即使不修改模型，原输出也已经满足对应的分布比较。然而，删除一个客户端的全部数据往往涉及很多记录，需要群体层面的保证，预算一般会随删除规模恶化。因此，不能把记录级隐私保证直接当成免费的客户端级遗忘保证。这种模型输出保证本身也不负责删除硬盘上的原始数据副本。
 </p>
 <h3>删除粒度决定参照数据是什么</h3>
-<p>样本级请求指定若干记录，类别级请求指定某一标签的全部训练样本，客户端级请求指定某个参与方的本地记录。这些都可以通过选择 \(\mathcal{D}^{\textrm{f}}\) 来描述，但它们的规模、分布，以及与保留数据的相关性可能相差很大。
+<p>样本级请求指定若干记录，类别级请求指定某一标签的全部训练样本，客户端级请求指定某个参与方的本地记录。这些都可以通过选择 \(\mathcal{D}^{\textrm{f}}\) 来描述，但它们的规模、分布，以及与保留数据的相关性可能相差很大，一个方法在其中一种上表现很好，换一种可能很糟。客户端级请求删掉的是同一方采集的、彼此高度相关的一整块数据；类别级请求删掉的是一个概念，而保留数据可能仍然部分支撑着它；样本级请求删掉的点，则往往与成千上万条保留样本长得很像。
 </p>
 <p>特征删除和标签修正还需要再区分一步。一个人可能只撤回某个敏感字段，同时允许其他字段继续使用。此时删掉整行会丢失过多数据；合理的参照是对修改后的记录重新训练，而不一定是对简单的行子集重新训练。Warnecke 等人专门研究了特征与标签层面的遗忘<span class="cite" data-ref="warnecke2023"></span>。数据究竟怎样被修改，应该在比较方法之前写清楚。
 </p>
+<p>粒度还会和模态纠缠在一起。当模型要对齐图像和文本时，一条记录是一个<i>图文对</i>，而这个对所教会的对齐关系，在对本身被删掉之后仍然可能留在任何一个分支里。<a class="figref" data-fig="2"></a> 是我们在联邦多模态模型上封闭这些残留的尝试，它右上角那一块，正好是上面三种请求类型的一个紧凑写法。
+</p>
+<figure id="fig-2">
+<a href="../../paper_image/full/arxiv_ease_2026.png"><img src="../../paper_image/arxiv_ease_2026.png" width="760" alt="EASE：联邦多模态遗忘，展示客户端、类别、样本三种请求类型，遗忘与保留梯度的堆叠、SVD 子空间分裂，以及方向选择性的遗忘锁。" loading="lazy"></a>
+<figcaption>三种请求类型，以及一个被删图文对留下的残留。来自我们关于纠缠感知锚点封闭的论文<span class="cite" data-ref="ding-ease"></span>。右上角把客户端级、类别级、样本级三种请求画在同一个联邦上。其余部分是方法本身：把堆叠起来的遗忘更新与保留更新用奇异值分解拆成遗忘子空间和保留子空间，对视觉与语言两个分支做双边位移，再用一个方向选择性的锁，约束遗忘方向在后续各轮里往回漂多远。这套几何构造是用来找“只有遗忘数据才能解释的方向”的工程手段，不是定义 2 的证明。<a href="../../paper_image/full/arxiv_ease_2026.png">查看完整分辨率</a>。</figcaption>
+</figure>
 <h2>集中式方法怎样减少重训练的工作量？</h2>
 <h3>SISA：在训练时限制每条记录的影响范围</h3>
 <p>SISA 是 Sharded、Isolated、Sliced、Aggregated 的缩写<span class="cite" data-ref="bourtoule2021"></span>。它首先改变原来的训练方式：把训练记录划分为互不重叠的分片，每个分片训练一个独立子模型，预测时再聚合这些子模型的输出。一个分片内部又分成多个切片，训练时逐步加入切片，并在加入新切片之前保存检查点。
 </p>
 <p>删除请求到来后，先找到记录所在的分片，再找到它首次参与训练的切片。从这条记录尚未进入训练的检查点恢复，只重跑受影响的后续训练过程。其他分片的模型可以直接保留。如果一批删除请求覆盖多个分片，就要分别修复这些分片，并从各自最早受影响的位置开始。
 </p>
-<figure id="fig-3">
-<a href="images/sisa-figure-2.png"><img src="images/sisa-figure-2.png" width="650" alt="SISA 原论文框架：数据分片、片内切片、独立训练的子模型，以及预测聚合。" loading="lazy"></a>
-<figcaption>红色记录只影响一个子模型。截取自 Bourtoule 等人，原 Fig. 2，PDF 第 6 页<span class="cite" data-ref="bourtoule2021"></span>（<a href="https://arxiv.org/pdf/1912.03817v3#page=6">原论文 PDF</a>）。原图中的 \(S\) 表示分片数，\(R\) 表示切片数；这些是论文保留的原始标记，不是本文定义中的可测集合 \(\mathcal{S}\)。分片省去其他模型的重训练，切片检查点进一步省去受影响模型的训练前缀。</figcaption>
-</figure>
 <p>例如，假设数据被分成十个训练成本相同的分片，而一条删除记录只位于其中一个分片。需要修复的只是这个子模型，切片还可能继续减少它的重算量。这只是帮助理解工作量的例子，并不意味着实际时间一定缩短十倍。并行程度、检查点读取、预测聚合，以及被删记录所在的位置，都会影响最终耗时。
 </p>
 <p>SISA 的精确性是相对于“在保留记录上运行相同的 SISA 训练过程”而言的。分片规则、随机性和检查点恢复方式都需要保持一致。它不是在声称结果等价于一张用全部保留数据训练的单体神经网络。如果各分片共用的数据预处理曾受到被删记录影响，也需要处理这部分依赖。相应的代价包括检查点存储、集成推理开销，以及每个子模型看到的数据更少所带来的效用损失。
@@ -169,10 +172,17 @@ MathJax.Hub.Config({
 </p>
 <p>Guo 等人把删除更新、随机扰动与梯度残差上界结合起来，在论文限定的模型条件下给出认证删除保证<span class="cite" data-ref="guo2020"></span>。保证同时依赖原模型怎样训练、删除更新怎样计算，以及剩余误差怎样界定。给任意修改后的模型随便加一点噪声，并不能得到同样的结论。
 </p>
-<figure id="fig-4">
-<a href="images/certified-removal-figure-1.png"><img src="images/certified-removal-figure-1.png" alt="认证删除原论文的三组曲线：准确率随扰动、遗忘预算和可支持删除数量的变化。" loading="lazy"></a>
-<figcaption>删除保证需要付出怎样的准确率代价？截取自 Guo 等人，原 Fig. 1，PDF 第 6 页<span class="cite" data-ref="guo2020"></span>（<a href="https://proceedings.mlr.press/v119/guo20c/guo20c.pdf#page=6">原论文 PDF</a>）。实验是 MNIST 上的二分类逻辑回归，不能直接代表深度网络。原图中 \(\lambda\) 表示正则化强度，\(\sigma\) 表示扰动的标准差。右图固定 \(\epsilon=1\)，展示支持更多删除与保持准确率之间的取舍。本文所有配图都可点击查看完整 PNG。</figcaption>
+<h3>当遗忘数据已经不能再读一遍</h3>
+<p>到这里为止，所有方法都默认遗忘数据还在，还能拿来算。梯度上升要用它，Newton 更新要在它上面求梯度和曲率，SISA 则要知道它当初进了哪个切片。量子联邦学习在物理层面打破了这个前提：量子态在被测量的那一刻就被破坏了，而不可克隆定理意味着当初根本没有留下副本。等删除请求到来时，它指名的那份数据已经不以任何节点能够求值的形式存在了。
+</p>
+<p>这就强迫整个流程换一个顺序。删除时需要的量，必须在训练<i>过程中</i>、在态被消耗之前就记录下来，而且要便宜到每一个训练态都记得起。<a class="figref" data-fig="3"></a> 中每个节点一边训练一边把每个训练态写成一份经典影子（classical shadow），之后不论模型已经走到哪组参数，都能从这些影子上估计遗忘数据的梯度和曲率。然后把上面那个 Newton 步用联邦的形式施加回去，跨网络传输的只有经典估计量。
+</p>
+<figure id="fig-3">
+<a href="../../paper_image/full/arxiv_shade_2026.png"><img src="../../paper_image/arxiv_shade_2026.png" width="760" alt="SHADE：量子节点在训练时记录经典影子，删除时从影子估计遗忘梯度与 Hessian，并用联邦 Newton 修正；右侧展示可观测量的反向光锥。" loading="lazy"></a>
+<figcaption>遗忘一份没法重放的数据。来自我们关于用经典影子做量子数据联邦遗忘的论文<span class="cite" data-ref="ding-shade"></span>。每个节点在训练发生的同时，把每个训练态的若干份拷贝测量成一份经典影子存起来。删除请求到来时，用遗忘记录对应的影子，在当前参数处估计 \(\hat{\mathbf{g}}^{\textrm{f}}\) 和 \(\hat{\mathbf{H}}^{\textrm{f}}\)，再用一次联邦 Newton 修正把它们的影响去掉。右边那一块是这件事能算得动的原因：真正要保留快照的只是可观测量的反向光锥，其规模随光锥增长，而不是随整个寄存器增长。离开节点的只有经典估计量。下方的实验平台是含噪模拟加三台边缘设备，不是一台硬件量子计算机。<a href="../../paper_image/full/arxiv_shade_2026.png">查看完整分辨率</a>。</figcaption>
 </figure>
+<p>抛开这个略显极端的场景，一般性的结论仍然成立：只要遗忘数据在删除时会不可用，不论是出于法律、物理还是数据留存策略的原因，删除它所需要的信息就必须在训练期间预先留出预算。这部分留存状态属于算法本身，既要计入成本，在声称保证时也要计入“观察者能看到什么”的分析。
+</p>
 <h3>梯度上升与 SCRUB：改变目标行为，同时维护正常用途</h3>
 <p>在深度模型上，很多实用方法通过损失函数调整行为，但并不提供分布层面的认证。把 \(c\) 在遗忘集上的平均值记为 \(\mathcal{J}^{\textrm{f}}\)，这里不包含正则项。最直接的做法是梯度上升：
 </p>
@@ -186,7 +196,7 @@ MathJax.Hub.Config({
 </p>
 <p>还有一些方法保存并反向撤销部分训练更新，或者利用曲率信息修改权重<span class="cite" data-ref="graves2021 golatkar2020"></span>。读这类论文时，需要问清楚：算法真正消除了哪些依赖，又近似处理了哪些依赖？减去某次旧更新，并不会自动撤销此后所有基于被改变模型计算出来的更新。
 </p>
-<h2>联邦学习与结构化数据：数据在哪里，决定方法能做什么</h2>
+<h2>联邦学习：能访问到什么，决定方法能做什么</h2>
 <h3>先定义联邦场景中的重训练参照</h3>
 <p>联邦学习中，\(N\) 个客户端协作训练模型 \(f(\cdot;\boldsymbol{\theta})\)，各自保留本地数据集 \(\mathcal{D}_k\)。令 \(\mathcal{D}=\bigcup_{k=1}^{N}\mathcal{D}_k\) 表示所有本地数据集的并集，并通过记录身份区分不同客户端持有的副本。用 \(k^{\textrm{f}}\) 标识退出的客户端。若它要删除其全部贡献，则 \(\mathcal{D}^{\textrm{f}}=\mathcal{D}_{k^{\textrm{f}}}\)。参照过程是在这些记录和该客户端训练贡献均不存在的条件下，重新运行约定的联邦训练协议。
 </p>
@@ -201,18 +211,31 @@ MathJax.Hub.Config({
 <h3>FedEraser 复用了什么，又重新计算了什么？</h3>
 <p>FedEraser 在训练时保存客户端的历史更新，在删除时让剩余客户端参与校准，再逐步重建模型<span class="cite" data-ref="liu2021"></span>。直观地说，历史更新提供更新幅度方面的信息，新的本地计算则提供适合重建轨迹的更新方向。它用服务器存储和额外客户端参与，换取相对于完整重训练的计算节省。
 </p>
-<figure id="fig-5">
-<a href="images/federaser-figure-1.png"><img src="images/federaser-figure-1.png" alt="FedEraser 原论文实验：测试集和被删客户端数据上的准确率，与历史更新累加、完整联邦重训练和原模型比较。" loading="lazy"></a>
-<figcaption>两幅图都应比较红色 FedEraser 与绿色 FedRetrain。截取自 Liu 等人的 <i>FedEraser</i>，原 Fig. 1，arXiv 版本 PDF 第 5 页<span class="cite" data-ref="liu2021"></span>（<a href="https://arxiv.org/pdf/2012.13891v3#page=5">原论文 PDF</a>）。“Target Data” 是退出客户端的数据。部分数据集上的重训练准确率仍然很高，因为其他客户端的数据也能帮助模型预测这些样本。柱子接近是这些实验中的行为证据，不是模型分布同一性的证明。</figcaption>
-</figure>
 <p>方法能否部署，还取决于协议条件：剩余客户端是否在线？服务器保存的是每个客户端的独立更新，还是安全聚合之后的总和？退出的客户端是否愿意再配合一次？这些条件不是次要实现细节，而是决定算法有没有所需输入的前提。
 </p>
 <p>例如，Wu 等人先减去历史贡献，再借助无标签辅助数据做知识蒸馏来恢复性能，因而不要求获得客户端原始数据<span class="cite" data-ref="wu2022"></span>。Halimi 等人的方法先由退出客户端进行本地遗忘，然后还需要服务器与剩余客户端执行恢复轮次<span class="cite" data-ref="halimi2022"></span>。把后一方法描述成“只靠退出客户端自己的计算完成”是不准确的。类似地，不能因为联邦方法也在修改权重，就直接套用集中式算法的理论保证。
 </p>
-<h3>图和推荐系统还改变了“一个样本”的含义</h3>
+<h3>只改真正承载这部分知识的层</h3>
+<p>上面这些方法把模型当成一个整体来处理。另一条路线先问：这个客户端的贡献，究竟落在模型的什么位置？为了移除一个客户端的影响而改写整个参数向量，比请求实际需要的动作大得多。而“这个客户端参与期间，哪些层动得最厉害”，恰好是服务器能从自己已有的历史里算出来的。
+</p>
+<p>细粒度在另一侧也有代价。在移动边缘，模型是一边对外提供服务、一边被修复的，所以相关成本不只是计算量，还有新鲜度：遗忘运行期间，部署模型里的知识已经旧到什么程度。<a class="figref" data-fig="4"></a> 把这个取舍显式地摆了出来，先按历史贡献给层打分，再在选中的层内部改写权重子组，而不是把这些层整个重训练一遍。
+</p>
+<figure id="fig-4">
+<a href="../../paper_image/full/icdcs_scale_2026.png"><img src="../../paper_image/icdcs_scale_2026.png" width="760" alt="SCALE：服务器端用加权敏感度打分识别敏感层，再由智能体选择层与稀疏化比例，在遗忘强度与信息新鲜度之间权衡。" loading="lazy"></a>
+<figcaption>把遗忘变成一个选层问题。来自我们关于敏感度感知联邦遗忘的论文<span class="cite" data-ref="ding-scale"></span>。左侧：服务器逐层比较全局模型与退出客户端本地模型的参数矩阵，按参数对齐程度与分布影响的加权组合为每层打分，保留排名靠前的若干层。右侧：一个智能体再对每个被选中的层决定改写哪些权重子组、稀疏到什么程度，其奖励同时包含遗忘效果和信息新鲜度。选的层越少越省，但也会留下越多原有影响；这张图给的是旋钮，不是“应该拧到哪一格”的答案。<a href="../../paper_image/full/icdcs_scale_2026.png">查看完整分辨率</a>。</figcaption>
+</figure>
+<h3>当“一条记录”不是表里的一行</h3>
 <p>在图模型中，删除一个节点会改变边和邻域，进而改变其他节点通过消息传递获得的信息。因此，请求到底删除节点本身、关联边、节点特征，还是某个训练标签，需要分别说明。GraphEraser 把分区与局部重训练的思路用于这一结构化场景<span class="cite" data-ref="chen2022"></span>。
 </p>
 <p>推荐系统也存在用户与物品之间的关联依赖。删除一次交互，与删除某个用户及其全部交互，是不同的任务。端侧联邦推荐又把这类结构依赖与本地数据不可直接访问的问题叠加起来<span class="cite" data-ref="yuan2023"></span>。因此，一个在独立记录上有效的删除方法，不能只换一个数据集名称就自动适用于这些场景。
+</p>
+<p>物理测量把这一点推得更远，因为那里要维护的对象甚至不是一组权重。信道知识地图由众多终端上报的上行导频构建，而它是一张<i>地图</i>：其中每一格都是从某些上报估计出来的，等到有人要求撤回时，那些上报早就不在了。“忘掉终端 3 在低频段的贡献”这样一条请求，指名的是地图上的一块区域，而不是表里的一行，如 <a class="figref" data-fig="5"></a> 所示；而修复这块区域唯一诚实的办法，是重新去测一遍。
+</p>
+<figure id="fig-5">
+<a href="../../paper_image/full/arxiv_sweep_2026.png"><img src="../../paper_image/arxiv_sweep_2026.png" width="760" alt="SWEEP：把删除需求写成终端、轮次、栅格、频段上的结构化单元，用包络清除并可能过删，再把待处理需求合并成一次重测活动。" loading="lazy"></a>
+<figcaption>当数据是一张地图时，删除请求长什么样。来自我们关于结构化与合并删除需求的论文<span class="cite" data-ref="ding-sweep"></span>。一条需求被写成终端、轮次、栅格、频段上的结构化删除单元。右上角那部分值得多看一眼：各条需求的形状并不规则，但实际被清除的是它们的包络，所以斜线格子虽然没人要求删，也一并被删掉了。过删（over-deletion）是一项真实成本，这里是按组给出上界，而不是当作不存在。方法清除对应的台账块，对受影响的栅格重新扫描测量，并把待处理的需求合并，让一次测量活动服务多条需求。右侧照片是 USRP 实验平台。<a href="../../paper_image/full/arxiv_sweep_2026.png">查看完整分辨率</a>。</figcaption>
+</figure>
+<p>关于过删还要补一句一般性的话。一个删得比要求更多的方法，几乎能轻松通过所有遗忘类指标，因为遗忘类指标只问目标有没有消失。真正能察觉损伤的是保留侧和效用侧的测量 —— 这也是下一章坚持要求两者都对同一个参照报告的原因之一。
 </p>
 <h2>大语言模型：删除训练记录与移除知识不是同一件事</h2>
 <h3>定义仍然成立，难的是构造参照</h3>
@@ -222,10 +245,6 @@ MathJax.Hub.Config({
 </p>
 <p>TOFU 就采用了这样的设计<span class="cite" data-ref="maini2024"></span>。它通过微调让模型学习虚构作者的资料，再指定其中一部分作者作为遗忘目标。参照模型从同一个起始检查点出发，只在保留作者的数据上微调。这样能够控制新增微调信息的来源；它并不是在宣称研究者知道基础模型预训练阶段学过的全部事实。
 </p>
-<figure id="fig-6">
-<a href="images/tofu-figure-1.png"><img src="images/tofu-figure-1.png" width="720" alt="TOFU 原论文示意图：预训练模型学习虚构作者数据，再遗忘指定子集。" loading="lazy"></a>
-<figcaption>先控制知识的引入过程，才更容易建立可靠参照。截取自 Maini 等人的 <i>TOFU</i>，原 Fig. 1，PDF 第 1 页<span class="cite" data-ref="maini2024"></span>（<a href="https://arxiv.org/pdf/2401.06121v1#page=1">原论文 PDF</a>）。图中依次是起始模型、在 TOFU 上微调后的模型和遗忘模型。评测还使用只在保留集上微调的参照模型，但原图没有画出这条支路。这是一张任务示意图，不是某个算法已经成功的实验证据。</figcaption>
-</figure>
 <h3>优化目标究竟在压低什么？</h3>
 <p>令 \(q\) 表示提示词，\(y\) 表示目标回答序列，\(p_{\boldsymbol{\theta}}(y\mid q)\) 表示模型在给定提示词时生成这一回答的条件概率。这里沿用 \(y\) 表示预测目标，只是它从分类标签变成了文本序列。回答概率由序列中各 token 的条件概率组成，对应的负对数似然损失为
 </p>
@@ -242,14 +261,19 @@ c(\boldsymbol{\theta};q,y)=-\log p_{\boldsymbol{\theta}}(y\mid q).
 </p>
 <p>这些目标回答的是不同的问题。模型拒绝原来的问法，不代表改写之后仍然不会回答。某个事实还可能从允许保留的信息中推断出来；正确删除相关训练记录，也未必能阻止这种推断。因此，稳健评测应改变提示词和访问条件，并检验后续微调能否恢复目标行为<span class="cite" data-ref="lynch2024"></span>。相对于合适基线而言，恢复得异常快值得警惕，但仅凭这一点，不能证明原来的具体信息一直原封不动地藏在权重中。
 </p>
+<h3>当多个模型互相教学</h3>
+<p>上面所有做法改的都是一个模型。在边缘侧，部署形态往往不是这样：服务器端的教师和一批设备上的小模型一轮一轮地交换输出，而每一次交换，都把教师知道的一部分内容抄进了删除请求从未指名的模型里。这时候改教师是必要的，但不充分：下一次上传时，那个学到了被删内容的学生会把它教回来。
+</p>
+<p>这是一个结构问题，不是优化问题，而结构问题有结构化的抓手 —— 传播知识的那些交换，本来就是服务器自己做的，所以服务器能读到它们的记录。<a class="figref" data-fig="6"></a> 从这份记录上建出谱系图，数清每份残留还会被往下抄多少次，然后只修正能把残留压住的那个最小持有者集合。
+</p>
+<figure id="fig-6">
+<a href="../../paper_image/full/arxiv_herd_2026.png"><img src="../../paper_image/arxiv_herd_2026.png" width="760" alt="HERD：边缘 LLM 教师与设备学生互相交换输出；谱系图统计每份残留被复制的次数，比较按跳数封闭与按复制权重封闭两种做法。" loading="lazy"></a>
+<figcaption>只改教师是不够的。来自我们关于互蒸馏下知识谱系追踪的论文<span class="cite" data-ref="ding-herd"></span>。边缘服务器与附近设备通过交换输出和权重，训练规模不同的语言模型。右上角对比了两种“该修谁”的判据：按与源头的跳数排序会漏掉那条返回边 —— 也就是学生把被删内容教回教师的那条路径；而按残留实际被复制的次数加权，就能把它抓住。下方是运行中的系统，包括阻止再次进入的传输守卫和链路恢复时的重入检查，照片是异构边缘实验平台。这个预算约束的是方法所核算的那部分残留，不是数据的一切痕迹。<a href="../../paper_image/full/arxiv_herd_2026.png">查看完整分辨率</a>。</figcaption>
+</figure>
 <h2>怎样判断一个遗忘方法是否有效？</h2>
 <h3>遗忘程度、正常效用与成本需要分开看</h3>
 <p>一个有用的实验比较通常包括原模型、不做处理、只在保留集上微调、完整重训练，以及待评测的方法。它们应处理同一删除请求，并说明超参数是怎样选出的。训练含有随机性时，要重复运行并报告波动。不能只挑一个有利的重训练结果作参照，却要求其他方法在多个随机种子上取平均。
 </p>
-<figure id="fig-7">
-<a href="images/scrub-figure-1.png"><img src="images/scrub-figure-1.png" alt="SCRUB 原论文雷达图：在三类删除设置下同时比较遗忘误差、保留准确率、测试准确率和运行时间加速。" loading="lazy"></a>
-<figcaption>一个方法需要从多个维度评价。截取自 Kurmanji 等人的 <i>Towards Unbounded Machine Unlearning</i>，原 Fig. 1，PDF 第 5 页<span class="cite" data-ref="kurmanji2023"></span>（<a href="https://arxiv.org/pdf/2302.09880v3#page=5">原论文 PDF</a>）。这组图针对论文中的 removing-bias 应用，因此希望遗忘误差较高；这一方向不能直接套到所有隐私删除任务。图中的 “Scale-up” 是相对运行时间指标，绘图时乘了五，不是准确率。小图例可点击 PNG 放大查看。</figcaption>
-</figure>
 <p>对分类数据集 \(\mathcal{B}\)，准确率定义为
 </p>
 <p style="text-align:center">
@@ -269,6 +293,12 @@ c(\boldsymbol{\theta};q,y)=-\log p_{\boldsymbol{\theta}}(y\mid q).
 \]
 </p><p>举一个简单例子：删除一张猫的照片，而保留集中还有大量相似的猫图。重训练模型仍然可能正确识别这张照片。如果刻意让遗忘模型把它分错，上面的差距反而会变大。这说明目标应该由参照决定，而不是一律把遗忘准确率降到零。但准确率差距小也远远不够：两个模型的总体准确率可以相同，置信度、记忆程度和少数群体上的错误却可能不同。
 </p>
+<p>把这些要求拼起来，结果表会呈现出一种特定的形状，值得看一个实例。<a class="figref" data-fig="7"></a> 并排给出四个量，每个量都覆盖三种请求类型，而且每个量都画了两遍：一遍是它自己的数值，一遍是它与重训练模型之间的带符号距离。真正承载论证的是第二个坐标轴。某个方法在遗忘准确率上“赢过”重训练，不是赢了，是删多了。
+</p>
+<figure id="fig-7">
+<a href="../../paper_image/full/ieee-network_fedslu_2026.png"><img src="../../paper_image/ieee-network_fedslu_2026.png" width="760" alt="FedSLU：遗忘评测闭环，包含成员推断攻击与保留、遗忘准确率测试；右侧四组柱状图给出 FA、RA、MIA、TA，并各带一条与重训练的差距轴。" loading="lazy"></a>
+<figcaption>四个维度，一个共同的参照。来自我们关于移动自主系统可信联邦遗忘的论文<span class="cite" data-ref="ding-fedslu"></span>。左侧是评测闭环：既从行为上探测遗忘模型是否还认得被删类别，也用影子模型训练的成员推断攻击去测它。右侧依次是遗忘准确率、保留准确率、攻击成功率和测试准确率，各自覆盖客户端级、类别级、样本级三种请求，虚线序列在右轴上给出每个方法与重训练之间的差距。这些是论文任务和协议下的实验结果，属于经验证据，不是分布层面的认证。<a href="../../paper_image/full/ieee-network_fedslu_2026.png">查看完整分辨率</a>。</figcaption>
+</figure>
 <h3>成员推断必须说明攻击者在区分什么</h3>
 <p>成员推断攻击利用模型可见的信息，尝试区分训练成员与非成员<span class="cite" data-ref="shokri2017"></span>。在遗忘实验中，需要进一步说明：攻击者要识别的是原始训练成员、当前仍保留的成员，还是曾被删除的记录？它只能查看预测，还是能够查看权重，或者同时拿到删除前后的模型？这些是不同的攻击实验。
 </p>
@@ -276,6 +306,8 @@ c(\boldsymbol{\theta};q,y)=-\log p_{\boldsymbol{\theta}}(y\mid q).
 </p>
 <h3>把删除前后的额外工作也算进去</h3>
 <p>成本至少包括删除延迟、总计算量、需要保留的状态，以及遗忘后的恢复阶段。联邦方法还应报告通信字节数、轮数和必须在线的客户端。分片方法还应说明额外训练、检查点和集成推理的成本。保存大量训练历史来换取快速删除，是一种可以讨论的取舍，但这些存储不能在对比中消失。
+</p>
+<p>在无线部署上，这笔账比看上去更紧，因为遗忘并没有一份单独的预算。它和被它打断的训练抢同一份带宽、同一份能量、同一个截止时间 —— 这正是我们在联邦分割学习里单独研究的那个规划问题<span class="cite" data-ref="ding-tilp"></span>。一个在空闲集群上评测出来的删除方法，等到必须和它正在修复的服务共享同一轮时，表现可能完全不同。
 </p>
 <p>最后要检查更困难的请求：大批量删除、少数群体、连续请求，以及后续微调。比较重新学习速度时，应给遗忘模型和重训练模型相同的新样本与计算预算。Goel 等人强调对抗式评测，而不是只运行一个容易通过的固定测试<span class="cite" data-ref="goel2022"></span>。充分的实验可以排查更多失败情况，但仍然不能代替面向所有观察者的分布保证。
 </p>
@@ -288,13 +320,9 @@ c(\boldsymbol{\theta};q,y)=-\log p_{\boldsymbol{\theta}}(y\mid q).
 <p>Sommer 等人研究了利用预先引入的后门行为进行概率性验证的方法<span class="cite" data-ref="sommer2020"></span>。基本思路是：先让用户贡献与一种可测试的模型行为相关联，再检查删除后该行为是否仍然存在。这样的测试有适用假设，也有检测错误。后门不再触发，并不等于用户数据的所有影响都已经消失。
 </p>
 <h3>删除前后两个版本的差异可能暴露目标数据</h3>
-<figure id="fig-8">
-<a href="images/inversion-figure-1.png"><img src="images/inversion-figure-1.png" width="680" alt="遗忘反演攻击原论文示意图：攻击者同时访问原模型和遗忘模型，利用两者变化推断被删数据。" loading="lazy"></a>
-<figcaption>攻击者可以观察模型的变化，而不只是最终模型。截取自 Hu 等人的 <i>Learn What You Want to Unlearn</i>，原 Fig. 1，PDF 第 2 页<span class="cite" data-ref="hu2024"></span>（<a href="https://arxiv.org/pdf/2404.03233v1#page=2">原论文 PDF</a>）。两个模型框对应 \(\boldsymbol{\theta}^{\textrm{old}}\) 和 \(\boldsymbol{\theta}^{\textrm{unl}}\)。论文对特征恢复与标签推断采用不同访问假设，不能把这张概念图理解成任何 API 用户都能重建任意被删图像。</figcaption>
-</figure>
-<p>定义 2 约束的是最终模型的边缘分布，并没有自动约束攻击者从“原模型、遗忘模型”这一对对象中能够学到什么。原模型本来就依赖被删记录，删除前后的变化还可能帮助攻击者进一步分离这些记录的贡献。
+<p>定义 2 约束的是最终模型的边缘分布，并没有自动约束攻击者从“原模型、遗忘模型”这一对对象中能够学到什么。原模型本来就依赖被删记录，删除前后的变化还可能帮助攻击者进一步分离这些记录的贡献。一个手里存着昨天那版模型、今天又下载了新版的观察者，看到的那个差值，有一部分恰恰是用那些本该消失的数据算出来的。
 </p>
-<p>Chen 等人研究了前后版本比较带来的成员身份泄露<span class="cite" data-ref="chen2021"></span>。Hu 等人则在能够白盒访问两个模型的条件下研究特征恢复，并在另一种攻击设置下利用预测变化推断标签<span class="cite" data-ref="hu2024"></span>。讨论实际系统是否面临这些风险时，必须保留这些访问条件，不能把不同威胁模型混在一起。
+<p>Chen 等人研究了前后版本比较带来的成员身份泄露<span class="cite" data-ref="chen2021"></span>。Hu 等人则在能够白盒访问两个模型的条件下研究特征恢复，并在另一种攻击设置下利用预测变化推断标签<span class="cite" data-ref="hu2024"></span>。讨论实际系统是否面临这些风险时，必须保留这些访问条件，不能把不同威胁模型混在一起；在联邦学习中这一点更加尖锐，因为逐轮的更新按设计就对服务器或某个参与方可见。
 </p>
 <p>另一类风险来自资源消耗。Marchant 等人构造投毒攻击，使后续删除变得昂贵，包括让认证删除机制触发代价较高的重训练<span class="cite" data-ref="marchant2022"></span>。因此，系统评测既要考虑平均情况下的正常请求，也要考虑攻击者选择的数据和删除工作负载。
 </p>
@@ -309,26 +337,50 @@ c(\boldsymbol{\theta};q,y)=-\log p_{\boldsymbol{\theta}}(y\mid q).
 \]
 </p><p>下标 \(i\) 标识请求，训练轮次仍然放在 \([t]\) 中。如果系统还会加入新数据或改变训练流程，就需要重新说明随时间变化的参照。一个只对“原模型加一次固定请求”成立的保证，不能在每次近似修改之后不加检查地继续套用：输入模型的历史已经变化，后续请求也可能是观察前面输出后才选择的。
 </p>
-<figure id="fig-9">
-<a href="images/certified-removal-figure-2.png"><img src="images/certified-removal-figure-2.png" width="620" alt="认证删除原论文曲线：随着删除数量增加，梯度残差的实测值与不同理论上界发生变化。" loading="lazy"></a>
-<figcaption>连续删除需要跟踪的一个具体量。截取自 Guo 等人，原 Fig. 2，PDF 第 7 页<span class="cite" data-ref="guo2020"></span>（<a href="https://proceedings.mlr.press/v119/guo20c/guo20c.pdf#page=7">原论文 PDF</a>）。纵轴是对数尺度的梯度残差范数，虚线为实测残差，彩色曲线为论文分析中的不同上界。上界与实测值的差距说明误差核算还有改进空间。这是凸模型中的删除实验，不是大语言模型在后续训练中“知识回流”的曲线。</figcaption>
-</figure>
 <p>一些方法维护累积残差的上界，超过阈值后回退到重训练。更一般地，删除容量研究的是：在约定的效用和保证水平下，一个模型能够支持多少删除<span class="cite" data-ref="sekhari2021"></span>。连续删除也并非没有理论工作。Descent-to-Delete 已经针对凸目标研究较长的对抗性更新序列，并区分“全部内部状态”与“可观察输出”的保证<span class="cite" data-ref="neel2021"></span>。把这些结论扩展到深度或联邦模型时，需要保留原来的假设和保证对象。
 </p>
+<h3>删除之后，训练还在继续</h3>
+<p>上面的式子假定数据集是固定的。部署中的系统很少给你这个条件。一个自改进的智能体网络在上线之后还在不断采集轨迹、不断用它们继续训练，所以今天被删掉的那条记录，昨天就已经是采集那批轨迹时的输入之一了 —— 而那批轨迹是保留数据，没有任何人要求删除它们。清掉当前的残留是正确的，但也是暂时的：影响会沿着它当初塑造过的那些保留轨迹回来。
+</p>
+<p>在 <a class="figref" data-fig="8"></a> 中，我们把这条返回路径本身当作要控制的对象。服务器维护一份台账，记录每条轨迹由哪个版本、哪些客户端产生，这已经足够估计一条被删记录对后续数据的塑造强度。擦除步骤清掉模型里现在还有的东西；随后的遏制步骤再把影响最高的那些保留轨迹降权，让回声不会在下一轮回来。
+</p>
+<figure id="fig-8">
+<a href="../../paper_image/full/arxiv_mute_2026.png"><img src="../../paper_image/arxiv_mute_2026.png" width="760" alt="MUTE：服务器台账记录版本与客户端，影响回声沿聚合边与采集边跨轮传播，遗忘—保留更新之后再遏制高影响保留轨迹。" loading="lazy"></a>
+<figcaption>影响会从“没人要求删的数据”里回来。来自我们关于后训练场景下可靠数据删除的论文<span class="cite" data-ref="ding-mute"></span>。右上角是机理：聚合边把残留沿权重带到下一轮，而采集边把它带进部署模型收集到的轨迹里，这些轨迹又会去训练下一个版本。干净数据只能稀释前一条路径，对后一条无能为力。下方是方法本身：按估计影响给 rollout 打分，用遗忘—保留更新做擦除，再把得分最高的保留轨迹隔离起来。遏制明确不等于删除 —— 这些轨迹仍然留在客户端上，之后会被释放，这是一个有自己代价的设计选择。<a href="../../paper_image/full/arxiv_mute_2026.png">查看完整分辨率</a>。</figcaption>
+</figure>
 <h3>后续学习不一定让已有保证失效</h3>
 <p>“模型继续训练，遗忘保证就会消失”这句话过于笼统。如果两个模型分布已经满足精确或近似比较，而之后对两者施加相同的随机化处理，并且只使用允许的信息，那么后处理性质会保留这种比较<span class="cite" data-ref="dwork2014"></span>。单纯增加后续计算，并不能反驳一个本来有效的保证。
 </p>
-<p>真正需要检查的是：后续过程是否又接触了被删记录，是否使用了旧优化器状态、缓存表示或旧检查点，以及是否引入了原保证未覆盖、依赖删除请求的信息。对于没有形式化保证的启发式方法，被压低的行为也可能在后续训练中重新出现。还有一种不同情况：只用允许保留或新增的数据，重训练参照本身也重新学会了相似知识。这与恢复某条被删记录的影响不能直接画等号。
+<p>真正需要检查的是：后续过程是否又接触了被删记录，是否使用了旧优化器状态、缓存表示或旧检查点，以及是否引入了原保证未覆盖、依赖删除请求的信息。上面的智能体网络正是这种情形：后续训练用的是被删记录参与生成的数据，按参照的口径这不属于允许的信息，所以后处理性质用不上，保证必须重新陈述。对于没有形式化保证的启发式方法，被压低的行为也可能在后续训练中重新出现。还有一种不同情况：只用允许保留或新增的数据，重训练参照本身也重新学会了相似知识。这与恢复某条被删记录的影响不能直接画等号。
 </p>
 <p>因此，在持续联邦学习中，一个可研究的问题应明确说明：系统保留哪些状态，后续客户端提供哪些信息，参照过程怎样随数据变化，以及观察者能看到哪些历史版本。实验则应在后续各个训练阶段同时跟踪遗忘效果和正常效用，并与获得相同允许信息的参照比较。这些问题会在<a href="../federated-unlearning/federated-unlearning-zh.html" target=&ldquo;blank&rdquo;>联邦遗忘笔记</a>中进一步展开。
 </p>
-<p>阅读一篇新的遗忘论文时，可以先找到它的重训练参照和请求类型，再检查方法需要的信息、保证的准确范围，以及长期维护这项保证的成本。上面的原论文图展示了问题的不同侧面；其中任何一组实验结果，都不应被扩大解释为整个系统已经获得了完整的遗忘认证。
+<h2>几个值得先问的问题</h2>
+<p>读一篇新的遗忘论文时，包括读我们自己的，下面四个问题基本能把它定位清楚。
+</p>
+<ol>
+<li><p><i>参照是什么？</i> 说出训练算法和请求类型。两者缺一，“已经遗忘”就还不成其为一个论断。
+</p>
+</li>
+<li><p><i>方法需要什么？</i> 能否访问遗忘数据、是否保存了历史更新、有没有谱系记录、剩余客户端是否在线、能不能重新去测一遍。这些条件决定方法能不能跑起来，而且它们本身就是成本的一部分。
+</p>
+</li>
+<li><p><i>保证究竟有多强？</i> 是一条分布层面的结论、一个对已核算残差的上界，还是在所测任务上的经验证据。三者不能互换，而第三种最常见。
+</p>
+</li>
+<li><p><i>之后会怎样？</i> 连续请求、持续训练，以及一个能看到的东西比最终模型更多的观察者。对一个崭新模型证明过一次的保证，不是系统此后可以免费保有的性质。
+</p>
+</li>
+</ol>
+<p>上面各章收集的，正是这些答案如何随场景变化。而我们自己的那些图想说明的是：难的地方通常不是更新规则本身，而是在一张地图或一个轨迹库上说清楚请求到底指什么、在没人指得出来时把数据找出来，以及不让系统自己的下一轮把刚做完的删除又撤销掉。
 </p>
 <h2>参考文献</h2>
 <div class="refs"><ol>
 <li id="ref-cao2015">Y. Cao and J. Yang, &ldquo;Towards making systems forget with machine unlearning,&rdquo;
     <i>IEEE Symposium on Security and Privacy</i>, 2015.
     <a href="https://doi.org/10.1109/SP.2015.35">DOI</a></li>
+<li id="ref-ding-atone"><b>Z. Ding</b>, J. Huang and Q. Duan, &ldquo;Initiating removal from operational symptoms in federated vehicular networks,&rdquo;
+    preprint, 2026.</li>
 <li id="ref-bourtoule2021">L. Bourtoule, V. Chandrasekaran, C. A. Choquette-Choo, H. Jia, A. Travers, B. Zhang, D. Lie and N. Papernot,
     &ldquo;Machine unlearning,&rdquo; <i>IEEE Symposium on Security and Privacy</i>, 2021.
     <a href="https://arxiv.org/abs/1912.03817">arXiv:1912.03817</a></li>
@@ -350,9 +402,13 @@ c(\boldsymbol{\theta};q,y)=-\log p_{\boldsymbol{\theta}}(y\mid q).
 <li id="ref-warnecke2023">A. Warnecke, L. Pirch, C. Wressnegger and K. Rieck, &ldquo;Machine unlearning of features and labels,&rdquo;
     <i>NDSS</i>, 2023.
     <a href="https://arxiv.org/abs/2108.11577">arXiv:2108.11577</a></li>
+<li id="ref-ding-ease"><b>Z. Ding</b>, B. Wu and J. Huang, &ldquo;EASE: federated multimodal unlearning via entanglement-aware anchor closure,&rdquo;
+    preprint, 2026. <a href="https://arxiv.org/abs/2605.00733">arXiv:2605.00733</a></li>
 <li id="ref-kurmanji2023">M. Kurmanji, P. Triantafillou, J. Hayes and E. Triantafillou, &ldquo;Towards unbounded machine unlearning,&rdquo;
     <i>NeurIPS</i>, 2023.
     <a href="https://arxiv.org/abs/2302.09880">arXiv:2302.09880</a></li>
+<li id="ref-ding-shade"><b>Z. Ding</b>, J. Huang and C.-c. Xing, &ldquo;Federated unlearning of quantum data via classical shadows,&rdquo;
+    preprint, 2026. <a href="https://arxiv.org/abs/2610.19077">arXiv:2610.19077</a></li>
 <li id="ref-graves2021">L. Graves, V. Nagisetty and V. Ganesh, &ldquo;Amnesiac machine learning,&rdquo;
     <i>AAAI</i>, vol. 35, pp. 11516&ndash;11524, 2021.
     <a href="https://doi.org/10.1609/aaai.v35i13.17371">DOI</a></li>
@@ -366,12 +422,16 @@ c(\boldsymbol{\theta};q,y)=-\log p_{\boldsymbol{\theta}}(y\mid q).
     <a href="https://arxiv.org/abs/2201.09441">arXiv:2201.09441</a></li>
 <li id="ref-halimi2022">A. Halimi, S. Kadhe, A. Rawat and N. Baracaldo, &ldquo;Federated unlearning: how to efficiently erase a client in FL?&rdquo;
     2022. <a href="https://arxiv.org/abs/2207.05521">arXiv:2207.05521</a></li>
+<li id="ref-ding-scale"><b>Z. Ding</b>, B. Wu and J. Huang, &ldquo;SCALE: sensitivity-aware federated unlearning with information freshness optimization for mobile edge computing,&rdquo;
+    <i>IEEE ICDCS</i>, 2026. <a href="https://arxiv.org/abs/2605.22589">arXiv:2605.22589</a></li>
 <li id="ref-chen2022">M. Chen, Z. Zhang, T. Wang, M. Backes, M. Humbert and Y. Zhang,
     &ldquo;Graph unlearning,&rdquo; <i>ACM CCS</i>, 2022.
     <a href="https://doi.org/10.1145/3548606.3559352">DOI</a></li>
 <li id="ref-yuan2023">W. Yuan, H. Yin, F. Wu, S. Zhang, T. He and H. Wang,
     &ldquo;Federated unlearning for on-device recommendation,&rdquo; 2022.
     <a href="https://arxiv.org/abs/2210.10958">arXiv:2210.10958</a></li>
+<li id="ref-ding-sweep"><b>Z. Ding</b> and J. Huang, &ldquo;Structuring and merging deletion demands on crowdsourced channel knowledge maps,&rdquo;
+    preprint, 2026.</li>
 <li id="ref-maini2024">P. Maini, Z. Feng, A. Schwarzschild, Z. C. Lipton and J. Z. Kolter,
     &ldquo;TOFU: a task of fictitious unlearning for LLMs,&rdquo; 2024.
     <a href="https://arxiv.org/abs/2401.06121">arXiv:2401.06121</a></li>
@@ -384,6 +444,8 @@ c(\boldsymbol{\theta};q,y)=-\log p_{\boldsymbol{\theta}}(y\mid q).
 <li id="ref-lynch2024">A. Lynch, P. Guo, A. Ewart, S. Casper and D. Hadfield-Menell,
     &ldquo;Eight methods to evaluate robust unlearning in LLMs,&rdquo; 2024.
     <a href="https://arxiv.org/abs/2402.16835">arXiv:2402.16835</a></li>
+<li id="ref-ding-herd"><b>Z. Ding</b>, J. Huang and G. Wang, &ldquo;Tracing knowledge lineage for federated unlearning under mutual distillation,&rdquo;
+    preprint, 2026. <a href="https://arxiv.org/abs/2610.19072">arXiv:2610.19072</a></li>
 <li id="ref-shokri2017">R. Shokri, M. Stronati, C. Song and V. Shmatikov, &ldquo;Membership inference attacks against machine learning models,&rdquo;
     <i>IEEE Symposium on Security and Privacy</i>, 2017.
     <a href="https://doi.org/10.1109/SP.2017.41">DOI</a></li>
@@ -391,6 +453,11 @@ c(\boldsymbol{\theta};q,y)=-\log p_{\boldsymbol{\theta}}(y\mid q).
     &ldquo;Membership inference attacks from first principles,&rdquo;
     <i>IEEE Symposium on Security and Privacy</i>, 2022.
     <a href="https://doi.org/10.1109/SP46214.2022.9833649">DOI</a></li>
+<li id="ref-ding-fedslu"><b>Z. Ding</b> and J. Huang, &ldquo;Toward trustworthy federated unlearning for mobile autonomous systems,&rdquo;
+    <i>IEEE Network</i>, 2026.
+    <a href="https://ieeexplore.ieee.org/abstract/document/11581296">IEEE Xplore</a></li>
+<li id="ref-ding-tilp"><b>Z. Ding</b>, B. Wu, J. Huang and S. Mao, &ldquo;Application-aware twin-in-the-loop planning for federated split learning over wireless edge networks,&rdquo;
+    preprint, 2026. <a href="https://arxiv.org/abs/2604.26105">arXiv:2604.26105</a></li>
 <li id="ref-goel2022">S. Goel, A. Prabhu, A. Sanyal, S.-N. Lim, P. Torr and P. Kumaraguru,
     &ldquo;Towards adversarial evaluations for inexact machine unlearning,&rdquo; 2022.
     <a href="https://arxiv.org/abs/2201.06640">arXiv:2201.06640</a></li>
@@ -399,15 +466,17 @@ c(\boldsymbol{\theta};q,y)=-\log p_{\boldsymbol{\theta}}(y\mid q).
     <a href="https://arxiv.org/abs/2110.11891">arXiv:2110.11891</a></li>
 <li id="ref-sommer2020">D. M. Sommer, L. Song, S. Wagh and P. Mittal, &ldquo;Towards probabilistic verification of machine unlearning,&rdquo;
     2020. <a href="https://arxiv.org/abs/2003.04247">arXiv:2003.04247</a></li>
-<li id="ref-hu2024">H. Hu, S. Wang, T. Dong and M. Xue, &ldquo;Learn what you want to unlearn: unlearning inversion attacks against machine unlearning,&rdquo;
-    <i>IEEE Symposium on Security and Privacy</i>, 2024.
-    <a href="https://arxiv.org/abs/2404.03233">arXiv:2404.03233</a></li>
 <li id="ref-chen2021">M. Chen, Z. Zhang, T. Wang, M. Backes, M. Humbert and Y. Zhang,
     &ldquo;When machine unlearning jeopardizes privacy,&rdquo; <i>ACM CCS</i>, 2021.
     <a href="https://doi.org/10.1145/3460120.3484756">DOI</a></li>
+<li id="ref-hu2024">H. Hu, S. Wang, T. Dong and M. Xue, &ldquo;Learn what you want to unlearn: unlearning inversion attacks against machine unlearning,&rdquo;
+    <i>IEEE Symposium on Security and Privacy</i>, 2024.
+    <a href="https://arxiv.org/abs/2404.03233">arXiv:2404.03233</a></li>
 <li id="ref-marchant2022">N. G. Marchant, B. I. P. Rubinstein and S. Alfeld, &ldquo;Hard to forget: poisoning attacks on certified machine unlearning,&rdquo;
     <i>AAAI</i>, vol. 36, pp. 7691&ndash;7700, 2022.
     <a href="https://doi.org/10.1609/aaai.v36i7.20736">DOI</a></li>
+<li id="ref-ding-mute"><b>Z. Ding</b>, J. Huang and L. Dong, &ldquo;When unlearning fails: reliable data deletion under post-training in agent networks,&rdquo;
+    preprint, 2026. <a href="https://arxiv.org/abs/2607.28829">arXiv:2607.28829</a></li>
 </ol></div>
 </td>
 </tr>
